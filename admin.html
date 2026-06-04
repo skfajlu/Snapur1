@@ -1,0 +1,203 @@
+<!DOCTYPE html>
+<html lang="en">
+<head>
+<meta charset="UTF-8"/><meta name="viewport" content="width=device-width, initial-scale=1.0"/>
+<title>Admin Panel — SnapURL</title>
+<link href="https://fonts.googleapis.com/css2?family=Syne:wght@700;800&family=Manrope:wght@400;500;600&display=swap" rel="stylesheet"/>
+<style>
+  :root{--bg:#080b10;--surface:#0e1219;--card:#141820;--border:#1e2535;--border2:#2a3347;--accent:#00e5ff;--accent2:#ff3d71;--accent3:#00ff94;--text:#e8edf5;--muted:#8892aa;}
+  *{margin:0;padding:0;box-sizing:border-box}
+  body{background:var(--bg);color:var(--text);font-family:'Manrope',sans-serif;min-height:100vh}
+  .login-screen{display:flex;align-items:center;justify-content:center;min-height:100vh}
+  .login-box{background:var(--card);border:1px solid var(--border2);border-radius:16px;padding:40px;width:100%;max-width:380px}
+  .login-box h1{font-family:'Syne',sans-serif;font-size:24px;font-weight:800;margin-bottom:6px}
+  .login-box p{color:var(--muted);font-size:13px;margin-bottom:24px}
+  input{width:100%;background:var(--surface);border:1px solid var(--border2);border-radius:8px;padding:11px 14px;color:var(--text);font-family:'Manrope',sans-serif;font-size:13px;outline:none;margin-bottom:12px;transition:border-color .2s}
+  input:focus{border-color:rgba(0,229,255,0.4)}
+  .btn{width:100%;background:var(--accent);color:#000;border:none;padding:12px;font-family:'Syne',sans-serif;font-size:13px;font-weight:700;border-radius:8px;cursor:pointer}
+  .btn:hover{background:#33ecff}
+  .error{color:var(--accent2);font-size:12px;margin-bottom:10px;display:none}
+  nav{display:flex;justify-content:space-between;align-items:center;padding:16px 28px;border-bottom:1px solid var(--border);background:rgba(8,11,16,0.9);position:sticky;top:0;z-index:100}
+  .logo{font-family:'Syne',sans-serif;font-size:20px;font-weight:800}
+  .logo span{color:var(--accent)}
+  .badge{background:rgba(255,61,113,0.15);color:var(--accent2);padding:4px 12px;border-radius:100px;font-size:11px;font-weight:700;letter-spacing:1px}
+  .logout-btn{background:transparent;border:1px solid var(--border2);color:var(--muted);padding:6px 14px;font-size:12px;border-radius:6px;cursor:pointer;font-family:'Manrope',sans-serif}
+  .logout-btn:hover{border-color:var(--accent2);color:var(--accent2)}
+  .container{max-width:1200px;margin:0 auto;padding:28px 24px}
+  .metrics{display:grid;grid-template-columns:repeat(4,1fr);gap:12px;margin-bottom:28px}
+  .metric{background:var(--card);border:1px solid var(--border);border-radius:10px;padding:20px;position:relative;overflow:hidden}
+  .metric::before{content:'';position:absolute;top:0;left:0;right:0;height:2px}
+  .metric:nth-child(1)::before{background:var(--accent)}
+  .metric:nth-child(2)::before{background:var(--accent3)}
+  .metric:nth-child(3)::before{background:#a78bfa}
+  .metric:nth-child(4)::before{background:var(--accent2)}
+  .metric-label{font-size:10px;color:var(--muted);letter-spacing:1.5px;text-transform:uppercase;margin-bottom:8px}
+  .metric-value{font-family:'Syne',sans-serif;font-size:28px;font-weight:800}
+  .tabs{display:flex;gap:4px;background:var(--surface);border:1px solid var(--border);border-radius:10px;padding:4px;margin-bottom:20px;width:fit-content}
+  .tab{padding:8px 20px;font-size:13px;font-weight:600;border-radius:7px;cursor:pointer;transition:all .2s;color:var(--muted);border:none;background:transparent;font-family:'Manrope',sans-serif}
+  .tab.active{background:var(--card);color:var(--text)}
+  .tab-content{display:none}.tab-content.active{display:block}
+  .table-card{background:var(--card);border:1px solid var(--border);border-radius:12px;overflow:hidden}
+  .t-head{display:grid;padding:10px 18px;background:var(--surface);border-bottom:1px solid var(--border);font-size:10px;color:var(--muted);font-weight:600;letter-spacing:1.5px;text-transform:uppercase}
+  .t-row{display:grid;padding:13px 18px;border-bottom:1px solid var(--border);align-items:center;font-size:13px;transition:background .15s}
+  .t-row:last-child{border-bottom:none}
+  .t-row:hover{background:rgba(255,255,255,0.02)}
+  .users-head{grid-template-columns:1.5fr 2fr 80px 80px 80px 80px}
+  .users-row{grid-template-columns:1.5fr 2fr 80px 80px 80px 80px}
+  .w-head{grid-template-columns:1.2fr 1fr 70px 100px 100px 140px}
+  .w-row{grid-template-columns:1.2fr 1fr 70px 100px 100px 140px}
+  .status-badge{padding:3px 10px;border-radius:100px;font-size:10px;font-weight:700}
+  .status-pending{background:rgba(255,193,7,0.1);color:#ffc107}
+  .status-paid{background:rgba(0,255,148,0.1);color:var(--accent3)}
+  .status-rejected{background:rgba(255,61,113,0.1);color:var(--accent2)}
+  .status-active{background:rgba(0,255,148,0.1);color:var(--accent3)}
+  .status-banned{background:rgba(255,61,113,0.1);color:var(--accent2)}
+  .action-btn{padding:5px 12px;border-radius:6px;font-size:11px;font-weight:700;border:none;cursor:pointer;font-family:'Syne',sans-serif;margin-right:4px;transition:all .2s}
+  .pay-btn{background:rgba(0,255,148,0.1);color:var(--accent3);border:1px solid rgba(0,255,148,0.3)}
+  .pay-btn:hover{background:var(--accent3);color:#000}
+  .rej-btn{background:rgba(255,61,113,0.1);color:var(--accent2);border:1px solid rgba(255,61,113,0.3)}
+  .rej-btn:hover{background:var(--accent2);color:#fff}
+  .ban-btn{background:rgba(255,61,113,0.1);color:var(--accent2);border:1px solid rgba(255,61,113,0.3)}
+  .ban-btn:hover{background:var(--accent2);color:#fff}
+  .empty{padding:32px;text-align:center;color:var(--muted);font-size:13px}
+  @media(max-width:700px){.metrics{grid-template-columns:1fr 1fr}}
+</style>
+</head>
+<body>
+
+<!-- LOGIN SCREEN -->
+<div class="login-screen" id="loginScreen">
+  <div class="login-box">
+    <h1>🔐 Admin Panel</h1>
+    <p>SnapURL admin access only</p>
+    <div class="error" id="loginError">Wrong credentials!</div>
+    <input type="text" id="adminUser" placeholder="Admin username"/>
+    <input type="password" id="adminPass" placeholder="Admin password"/>
+    <button class="btn" onclick="adminLogin()">Login to Admin →</button>
+  </div>
+</div>
+
+<!-- ADMIN PANEL -->
+<div id="adminPanel" style="display:none">
+  <nav>
+    <div><span class="logo">Snap<span>URL</span></span> <span class="badge">ADMIN</span></div>
+    <button class="logout-btn" onclick="adminLogout()">Logout</button>
+  </nav>
+  <div class="container">
+    <div class="metrics">
+      <div class="metric"><div class="metric-label">Total Users</div><div class="metric-value" id="aUsers">0</div></div>
+      <div class="metric"><div class="metric-label">Total Links</div><div class="metric-value" id="aLinks">0</div></div>
+      <div class="metric"><div class="metric-label">Pending Withdrawals</div><div class="metric-value" id="aPending">0</div></div>
+      <div class="metric"><div class="metric-label">Pending Amount</div><div class="metric-value" id="aPendingAmt">$0</div></div>
+    </div>
+    <div class="tabs">
+      <button class="tab active" onclick="switchTab('withdrawals')">💸 Withdrawals</button>
+      <button class="tab" onclick="switchTab('users')">👥 Users</button>
+    </div>
+    <!-- WITHDRAWALS -->
+    <div class="tab-content active" id="tab-withdrawals">
+      <div class="table-card">
+        <div class="t-head w-head"><div>User</div><div>Details</div><div>Amount</div><div>Method</div><div>Status</div><div>Actions</div></div>
+        <div id="wBody"><div class="empty">Loading...</div></div>
+      </div>
+    </div>
+    <!-- USERS -->
+    <div class="tab-content" id="tab-users">
+      <div class="table-card">
+        <div class="t-head users-head"><div>Username</div><div>Email</div><div>Links</div><div>Clicks</div><div>Balance</div><div>Status</div></div>
+        <div id="uBody"><div class="empty">Loading...</div></div>
+      </div>
+    </div>
+  </div>
+</div>
+
+<script>
+  let adminCreds = null;
+
+  function adminLogin() {
+    const u = document.getElementById('adminUser').value.trim();
+    const p = document.getElementById('adminPass').value;
+    const err = document.getElementById('loginError');
+    if(!u||!p){err.style.display='block';return;}
+    adminCreds = {user:u, pass:p};
+    loadAdminData();
+  }
+
+  async function loadAdminData() {
+    try {
+      const res = await fetch('/api/admin/stats', {headers:{user:adminCreds.user, pass:adminCreds.pass}});
+      if(!res.ok){document.getElementById('loginError').style.display='block';adminCreds=null;return;}
+      const data = await res.json();
+      document.getElementById('loginScreen').style.display='none';
+      document.getElementById('adminPanel').style.display='block';
+      document.getElementById('aUsers').textContent = data.totalUsers;
+      document.getElementById('aLinks').textContent = data.totalLinks;
+      document.getElementById('aPending').textContent = data.pendingWithdrawals;
+      document.getElementById('aPendingAmt').textContent = '$'+data.pendingAmount.toFixed(2);
+      loadWithdrawals();
+    } catch(e){document.getElementById('loginError').style.display='block';adminCreds=null;}
+  }
+
+  function switchTab(name) {
+    document.querySelectorAll('.tab').forEach((t,i)=>t.classList.toggle('active',['withdrawals','users'][i]===name));
+    document.querySelectorAll('.tab-content').forEach(c=>c.classList.remove('active'));
+    document.getElementById('tab-'+name).classList.add('active');
+    if(name==='users') loadUsers();
+    if(name==='withdrawals') loadWithdrawals();
+  }
+
+  async function loadWithdrawals() {
+    const res = await fetch('/api/admin/withdrawals', {headers:{user:adminCreds.user, pass:adminCreds.pass}});
+    const list = await res.json();
+    const el = document.getElementById('wBody');
+    if(!list.length){el.innerHTML='<div class="empty">No withdrawal requests</div>';return;}
+    el.innerHTML = list.map(w=>`
+      <div class="t-row w-row">
+        <div><strong>${w.username}</strong></div>
+        <div style="font-size:11px;color:var(--muted2)">${w.details}</div>
+        <div><strong style="color:var(--accent3)">$${w.amount}</strong></div>
+        <div>${w.method}</div>
+        <div><span class="status-badge status-${w.status}">${w.status.toUpperCase()}</span></div>
+        <div>
+          ${w.status==='pending'?`
+            <button class="action-btn pay-btn" onclick="updateWithdraw(${w.id},'paid')">✓ Pay</button>
+            <button class="action-btn rej-btn" onclick="updateWithdraw(${w.id},'rejected')">✗ Reject</button>
+          `:'-'}
+        </div>
+      </div>`).join('');
+  }
+
+  async function loadUsers() {
+    const res = await fetch('/api/admin/users', {headers:{user:adminCreds.user, pass:adminCreds.pass}});
+    const list = await res.json();
+    const el = document.getElementById('uBody');
+    if(!list.length){el.innerHTML='<div class="empty">No users yet</div>';return;}
+    el.innerHTML = list.map(u=>`
+      <div class="t-row users-row">
+        <div><strong>${u.username}</strong></div>
+        <div style="font-size:11px;color:var(--muted2)">${u.email}</div>
+        <div>${u.totalLinks||0}</div>
+        <div>${u.totalClicks||0}</div>
+        <div style="color:var(--accent3)">$${(u.balance||0).toFixed(2)}</div>
+        <div>
+          <span class="status-badge status-${u.status}">${u.status.toUpperCase()}</span>
+          <button class="action-btn ban-btn" style="margin-top:4px" onclick="banUser(${u.id})">${u.status==='banned'?'Unban':'Ban'}</button>
+        </div>
+      </div>`).join('');
+  }
+
+  async function updateWithdraw(id, status) {
+    await fetch(`/api/admin/withdraw/${id}`, {method:'POST',headers:{'Content-Type':'application/json',user:adminCreds.user,pass:adminCreds.pass},body:JSON.stringify({status})});
+    loadWithdrawals();
+    loadAdminData();
+  }
+
+  async function banUser(id) {
+    await fetch(`/api/admin/user/${id}/ban`, {method:'POST',headers:{user:adminCreds.user,pass:adminCreds.pass}});
+    loadUsers();
+  }
+
+  function adminLogout(){adminCreds=null;document.getElementById('adminPanel').style.display='none';document.getElementById('loginScreen').style.display='flex';}
+  document.addEventListener('keydown',e=>{if(e.key==='Enter'&&!adminCreds)adminLogin();});
+</script>
+</body></html>

@@ -1,0 +1,71 @@
+<!DOCTYPE html>
+<html lang="en">
+<head>
+<meta charset="UTF-8"/><meta name="viewport" content="width=device-width, initial-scale=1.0"/>
+<title>Login — SnapURL</title>
+<script async src="https://pagead2.googlesyndication.com/pagead/js/adsbygoogle.js?client=ca-pub-1308261075486301" crossorigin="anonymous"></script>
+<link href="https://fonts.googleapis.com/css2?family=Syne:wght@700;800&family=Manrope:wght@400;500;600&display=swap" rel="stylesheet"/>
+<style>
+  :root{--bg:#080b10;--card:#141820;--border:#1e2535;--border2:#2a3347;--accent:#00e5ff;--text:#e8edf5;--muted:#8892aa;}
+  *{margin:0;padding:0;box-sizing:border-box}
+  body{background:var(--bg);color:var(--text);font-family:'Manrope',sans-serif;min-height:100vh;display:flex;flex-direction:column}
+  body::before{content:'';position:fixed;inset:0;background-image:linear-gradient(rgba(0,229,255,0.03) 1px,transparent 1px),linear-gradient(90deg,rgba(0,229,255,0.03) 1px,transparent 1px);background-size:40px 40px;pointer-events:none}
+  nav{display:flex;justify-content:space-between;align-items:center;padding:18px 32px;border-bottom:1px solid var(--border);background:rgba(8,11,16,0.9);position:relative;z-index:10}
+  .logo{font-family:'Syne',sans-serif;font-size:22px;font-weight:800;text-decoration:none;color:var(--text)}
+  .logo span{color:var(--accent)}
+  nav a.link{color:var(--muted);text-decoration:none;font-size:13px}
+  nav a.link:hover{color:var(--accent)}
+  .page{flex:1;display:flex;align-items:center;justify-content:center;padding:40px 24px;position:relative;z-index:5}
+  .box{background:var(--card);border:1px solid var(--border2);border-radius:16px;padding:40px;width:100%;max-width:420px;box-shadow:0 0 60px rgba(0,229,255,0.05)}
+  h1{font-family:'Syne',sans-serif;font-size:28px;font-weight:800;margin-bottom:6px}
+  .sub{color:var(--muted);font-size:14px;margin-bottom:28px}
+  .field{margin-bottom:16px}
+  label{display:block;font-size:12px;font-weight:600;letter-spacing:1px;text-transform:uppercase;color:var(--muted);margin-bottom:6px}
+  input{width:100%;background:#0e1219;border:1px solid var(--border2);border-radius:8px;padding:12px 16px;color:var(--text);font-family:'Manrope',sans-serif;font-size:14px;outline:none;transition:border-color .2s}
+  input:focus{border-color:rgba(0,229,255,0.4)}
+  .btn{width:100%;background:var(--accent);color:#000;border:none;padding:14px;font-family:'Syne',sans-serif;font-size:14px;font-weight:700;border-radius:8px;cursor:pointer;margin-top:8px;transition:background .2s}
+  .btn:hover{background:#33ecff}
+  .btn:disabled{opacity:.5;cursor:not-allowed}
+  .error{background:rgba(255,61,113,0.1);border:1px solid rgba(255,61,113,0.3);color:#ff3d71;padding:10px 14px;border-radius:8px;font-size:13px;margin-bottom:16px;display:none}
+  .reg-link{text-align:center;margin-top:20px;font-size:13px;color:var(--muted)}
+  .reg-link a{color:var(--accent);text-decoration:none;font-weight:600}
+</style>
+</head>
+<body>
+<nav>
+  <a class="logo" href="/">Snap<span>URL</span></a>
+  <a class="link" href="/register.html">New here? Register →</a>
+</nav>
+<div class="page">
+  <div class="box">
+    <h1>Welcome Back! 👋</h1>
+    <div class="sub">Login karke apni earnings check karo</div>
+    <div class="error" id="error"></div>
+    <div class="field"><label>Email</label><input type="email" id="email" placeholder="you@email.com"/></div>
+    <div class="field"><label>Password</label><input type="password" id="password" placeholder="Your password"/></div>
+    <button class="btn" id="btn" onclick="login()">Login →</button>
+    <div class="reg-link">New user? <a href="/register.html">Register here</a></div>
+  </div>
+</div>
+<script>
+async function login() {
+  const email = document.getElementById('email').value.trim();
+  const password = document.getElementById('password').value;
+  const err = document.getElementById('error');
+  const btn = document.getElementById('btn');
+  err.style.display='none';
+  if(!email||!password){err.textContent='Email aur password dono bharo!';err.style.display='block';return;}
+  btn.disabled=true;btn.textContent='Logging in...';
+  try {
+    const res = await fetch('/api/login',{method:'POST',headers:{'Content-Type':'application/json'},body:JSON.stringify({email,password})});
+    const data = await res.json();
+    if(!res.ok){err.textContent=data.error;err.style.display='block';return;}
+    localStorage.setItem('token',data.token);
+    localStorage.setItem('user',JSON.stringify(data.user));
+    window.location='/dashboard.html';
+  } catch(e){err.textContent='Server error!';err.style.display='block';}
+  finally{btn.disabled=false;btn.textContent='Login →';}
+}
+document.addEventListener('keydown',e=>{if(e.key==='Enter')login();});
+</script>
+</body></html>
