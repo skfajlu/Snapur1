@@ -11,7 +11,7 @@ const getLinks = () => JSON.parse(fs.readFileSync(DB));
 const saveLinks = (data) => fs.writeFileSync(DB, JSON.stringify(data, null, 2));
 
 app.use(express.json());
-app.use(express.static('public'));
+app.use(express.static(__dirname));
 
 // ── Shorten API ──
 app.post('/api/shorten', (req, res) => {
