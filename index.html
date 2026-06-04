@@ -1,0 +1,144 @@
+<!DOCTYPE html>
+<html lang="en">
+<head>
+<meta charset="UTF-8"/>
+<meta name="viewport" content="width=device-width, initial-scale=1.0"/>
+<title>SnapURL — Link Shortener | Earn Money</title>
+<script async src="https://pagead2.googlesyndication.com/pagead/js/adsbygoogle.js?client=ca-pub-1308261075486301" crossorigin="anonymous"></script>
+<link href="https://fonts.googleapis.com/css2?family=Syne:wght@700;800&family=Manrope:wght@400;500;600&display=swap" rel="stylesheet"/>
+<style>
+:root{--bg:#080b10;--card:#141820;--border:#1e2535;--border2:#2a3347;--accent:#00e5ff;--accent2:#ff3d71;--accent3:#00ff94;--text:#e8edf5;--muted:#8892aa;}
+*{margin:0;padding:0;box-sizing:border-box}
+body{background:var(--bg);color:var(--text);font-family:'Manrope',sans-serif;min-height:100vh}
+body::before{content:'';position:fixed;inset:0;background-image:linear-gradient(rgba(0,229,255,0.03) 1px,transparent 1px),linear-gradient(90deg,rgba(0,229,255,0.03) 1px,transparent 1px);background-size:40px 40px;pointer-events:none;z-index:0}
+nav{position:relative;z-index:10;display:flex;justify-content:space-between;align-items:center;padding:18px 32px;border-bottom:1px solid var(--border);background:rgba(8,11,16,0.9);backdrop-filter:blur(12px)}
+.logo{font-family:'Syne',sans-serif;font-size:22px;font-weight:800;text-decoration:none;color:var(--text)}
+.logo span{color:var(--accent)}
+.nav-links{display:flex;gap:16px;align-items:center}
+.nav-links a{text-decoration:none;color:var(--muted);font-size:13px;font-weight:500;transition:color .2s}
+.nav-links a:hover{color:var(--accent)}
+.nav-cta{background:var(--accent)!important;color:#000!important;padding:8px 18px;font-weight:700!important;border-radius:6px}
+.hero{position:relative;z-index:5;text-align:center;padding:80px 24px 50px}
+.badge{display:inline-flex;align-items:center;gap:8px;background:rgba(0,229,255,0.08);border:1px solid rgba(0,229,255,0.2);color:var(--accent);font-size:11px;font-weight:600;letter-spacing:2px;text-transform:uppercase;padding:6px 16px;border-radius:100px;margin-bottom:24px}
+.badge::before{content:'●';font-size:8px;animation:pulse 1.5s infinite}
+@keyframes pulse{0%,100%{opacity:1}50%{opacity:.3}}
+h1{font-family:'Syne',sans-serif;font-size:clamp(40px,7vw,72px);font-weight:800;line-height:1.05;letter-spacing:-2px;margin-bottom:20px}
+h1 em{font-style:normal;color:var(--accent)}
+.hero p{font-size:16px;color:var(--muted);max-width:480px;margin:0 auto 40px;line-height:1.7}
+.shortener-box{position:relative;z-index:5;max-width:680px;margin:0 auto 16px}
+.input-row{display:flex;background:var(--card);border:1px solid var(--border2);border-radius:12px;overflow:hidden;box-shadow:0 0 40px rgba(0,229,255,0.05);transition:border-color .3s,box-shadow .3s}
+.input-row:focus-within{border-color:rgba(0,229,255,0.4);box-shadow:0 0 40px rgba(0,229,255,0.12)}
+.url-input{flex:1;background:transparent;border:none;outline:none;padding:18px 20px;font-family:'Manrope',sans-serif;font-size:14px;color:var(--text);min-width:0}
+.url-input::placeholder{color:var(--muted)}
+.sep{width:1px;background:var(--border);margin:12px 0;flex-shrink:0}
+.alias-input{width:130px;background:transparent;border:none;outline:none;padding:18px 14px;font-size:13px;color:var(--muted);flex-shrink:0;font-family:'Manrope',sans-serif}
+.alias-input::placeholder{color:var(--muted)}
+.shorten-btn{background:var(--accent);color:#000;border:none;padding:0 26px;font-family:'Syne',sans-serif;font-size:14px;font-weight:700;cursor:pointer;transition:background .2s;white-space:nowrap}
+.shorten-btn:hover{background:#33ecff}
+.login-notice{position:relative;z-index:5;max-width:680px;margin:0 auto 60px;text-align:center;font-size:13px;color:var(--muted)}
+.login-notice a{color:var(--accent);text-decoration:none;font-weight:600}
+.features{position:relative;z-index:5;max-width:1100px;margin:0 auto;padding:0 24px 80px}
+.feat-title{font-family:'Syne',sans-serif;font-size:11px;font-weight:700;letter-spacing:3px;text-transform:uppercase;color:var(--muted);text-align:center;margin-bottom:32px}
+.feat-grid{display:grid;grid-template-columns:repeat(3,1fr);gap:16px}
+.feat-card{background:var(--card);border:1px solid var(--border);border-radius:12px;padding:28px;transition:border-color .2s}
+.feat-card:hover{border-color:var(--border2)}
+.feat-icon{font-size:32px;margin-bottom:14px}
+.feat-card h3{font-family:'Syne',sans-serif;font-size:16px;font-weight:700;margin-bottom:8px}
+.feat-card p{font-size:13px;color:var(--muted);line-height:1.6}
+.earn-section{position:relative;z-index:5;max-width:1100px;margin:0 auto;padding:0 24px 80px}
+.earn-box{background:linear-gradient(135deg,rgba(0,229,255,0.06),rgba(0,255,148,0.03));border:1px solid rgba(0,229,255,0.15);border-radius:16px;padding:48px;text-align:center}
+.earn-box h2{font-family:'Syne',sans-serif;font-size:32px;font-weight:800;margin-bottom:12px}
+.earn-box p{color:var(--muted);font-size:15px;margin-bottom:32px;max-width:500px;margin-left:auto;margin-right:auto}
+.earn-stats{display:grid;grid-template-columns:repeat(3,1fr);gap:16px;margin-bottom:32px}
+.earn-stat{background:var(--card);border-radius:10px;padding:20px}
+.earn-num{font-family:'Syne',sans-serif;font-size:32px;font-weight:800;color:var(--accent3)}
+.earn-label{font-size:12px;color:var(--muted);margin-top:4px}
+.cta-btns{display:flex;gap:12px;justify-content:center;flex-wrap:wrap}
+.btn-primary{background:var(--accent);color:#000;padding:14px 32px;font-family:'Syne',sans-serif;font-weight:700;text-decoration:none;border-radius:8px;font-size:15px;transition:background .2s}
+.btn-primary:hover{background:#33ecff}
+.btn-secondary{background:transparent;color:var(--text);padding:14px 32px;font-family:'Syne',sans-serif;font-weight:700;text-decoration:none;border-radius:8px;font-size:15px;border:1px solid var(--border2);transition:border-color .2s}
+.btn-secondary:hover{border-color:var(--accent)}
+footer{position:relative;z-index:5;border-top:1px solid var(--border);padding:24px 32px;display:flex;justify-content:space-between;align-items:center;flex-wrap:wrap;gap:12px}
+footer p{font-size:12px;color:var(--muted)}
+.footer-links a{color:var(--muted);text-decoration:none;font-size:12px;margin-left:20px;transition:color .2s}
+.footer-links a:hover{color:var(--text)}
+@media(max-width:700px){nav{padding:16px 20px}.nav-links a:not(.nav-cta){display:none}.feat-grid{grid-template-columns:1fr}.earn-stats{grid-template-columns:1fr}.earn-box{padding:28px}footer{flex-direction:column;text-align:center}.footer-links a{margin:0 10px}}
+</style>
+</head>
+<body>
+
+<nav>
+  <a class="logo" href="/">Snap<span>URL</span></a>
+  <div class="nav-links">
+    <a href="/about.html">About</a>
+    <a href="/login.html">Login</a>
+    <a href="/register.html" class="nav-cta">Get Started →</a>
+  </div>
+</nav>
+
+<div class="hero">
+  <div class="badge">Free · Fast · Earn Money</div>
+  <h1>Shorten links &<br><em>earn money</em></h1>
+  <p>Short link banao, share karo aur har click pe paisa kamao. Register karo — bilkul free!</p>
+</div>
+
+<div class="shortener-box">
+  <div class="input-row">
+    <input class="url-input" id="urlInput" type="url" placeholder="https://your-long-link.com/paste-here..."/>
+    <div class="sep"></div>
+    <input class="alias-input" id="aliasInput" type="text" placeholder="custom alias"/>
+    <button class="shorten-btn" onclick="tryShorten()">Shorten →</button>
+  </div>
+</div>
+<div class="login-notice">
+  💡 <a href="/register.html">Register karo</a> ya <a href="/login.html">login karo</a> — clicks pe paisa kamane ke liye!
+</div>
+
+<div class="features">
+  <div class="feat-title">✨ Features</div>
+  <div class="feat-grid">
+    <div class="feat-card"><div class="feat-icon">⚡</div><h3>Instant Shortening</h3><p>Koi bhi lamba URL 1 second mein short karo — no signup needed for basic use!</p></div>
+    <div class="feat-card"><div class="feat-icon">💰</div><h3>Earn Per Click</h3><p>Registered users ko har click pe $0.01 milta hai. 1000 clicks = $10 earnings!</p></div>
+    <div class="feat-card"><div class="feat-icon">📊</div><h3>Live Analytics</h3><p>Dashboard mein real-time clicks, earnings aur link performance track karo.</p></div>
+    <div class="feat-card"><div class="feat-icon">✏️</div><h3>Custom Alias</h3><p>Apna khud ka short link naam set karo — memorable aur brandable!</p></div>
+    <div class="feat-card"><div class="feat-icon">💸</div><h3>Easy Withdrawal</h3><p>UPI, PayPal ya Bank Transfer se $5 se withdraw shuru karo. 24-48h processing!</p></div>
+    <div class="feat-card"><div class="feat-icon">🔒</div><h3>Safe & Secure</h3><p>Harmful links automatically block hote hain. Tera data safe hai hamare paas.</p></div>
+  </div>
+</div>
+
+<div class="earn-section">
+  <div class="earn-box">
+    <h2>💰 Paise Kamao — Link Share Karke!</h2>
+    <p>Register karo, links shorten karo, share karo aur har click pe earning hoti rahegi!</p>
+    <div class="earn-stats">
+      <div class="earn-stat"><div class="earn-num">$10</div><div class="earn-label">Per 1000 Clicks</div></div>
+      <div class="earn-stat"><div class="earn-num">$5</div><div class="earn-label">Min Withdrawal</div></div>
+      <div class="earn-stat"><div class="earn-num">UPI</div><div class="earn-label">PayPal · Bank Transfer</div></div>
+    </div>
+    <div class="cta-btns">
+      <a href="/register.html" class="btn-primary">Register & Start Earning →</a>
+      <a href="/login.html" class="btn-secondary">Already registered? Login</a>
+    </div>
+  </div>
+</div>
+
+<footer>
+  <p>© 2026 SnapURL. Made with ❤️ in India 🇮🇳</p>
+  <div class="footer-links">
+    <a href="/about.html">About</a>
+    <a href="/terms.html">Terms</a>
+    <a href="/privacy.html">Privacy</a>
+  </div>
+</footer>
+
+<script>
+function tryShorten() {
+  const url = document.getElementById('urlInput').value.trim();
+  if(!url){document.getElementById('urlInput').focus();return;}
+  const alias = document.getElementById('aliasInput').value.trim();
+  window.location = '/login.html?redirect=shorten&url=' + encodeURIComponent(url) + (alias?'&alias='+alias:'');
+}
+document.getElementById('urlInput').addEventListener('keydown', e => { if(e.key==='Enter') tryShorten(); });
+</script>
+</body>
+</html>
