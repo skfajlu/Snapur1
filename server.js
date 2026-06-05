@@ -143,15 +143,19 @@ app.get('/:code', async (req, res) => {
   if (reserved.includes(req.params.code)) return res.sendFile(path.join(__dirname, req.params.code));
   const link = await db.collection('links').findOne({ code: req.params.code });
   if (!link) return res.status(404).send('Link not found!');
-  const day = new Date().getDay();
-  const dayIdx = day === 0 ? 6 : day - 1;
-  const earned = CONFIG.RATE_PER_1000 / 1000;
-  await db.collection('links').updateOne({ _id: link._id }, { $inc: { clicks: 1, earnings: earned, [`weekData.${dayIdx}`]: 1 } });
-  await db.collection('users').updateOne({ _id: link.userId }, { $inc: { balance: earned, totalEarned: earned, totalClicks: 1 } });
-
-  const dest = encodeURIComponent(link.original);
-  const smartlink = 'https://www.effectivecpmnetwork.com/vfyqtz053?key=6ed7352ab0dae54ecdac81b78d85306b';
+  
   const step = parseInt(req.query.step || '1');
+  
+  // Only count click on first step
+  if (step === 1) {
+    const day = new Date().getDay();
+    const dayIdx = day === 0 ? 6 : day - 1;
+    const earned = CONFIG.RATE_PER_1000 / 1000;
+    await db.collection('links').updateOne({ _id: link._id }, { $inc: { clicks: 1, earnings: earned, [`weekData.${dayIdx}`]: 1 } });
+    await db.collection('users').updateOne({ _id: link.userId }, { $inc: { balance: earned, totalEarned: earned, totalClicks: 1 } });
+  }
+
+  const smartlink = 'https://www.effectivecpmnetwork.com/vfyqtz053?key=6ed7352ab0dae54ecdac81b78d85306b';
   
   // After 3 ad pages, go to final destination
   const nextUrl = step < 3 
@@ -163,7 +167,7 @@ app.get('/:code', async (req, res) => {
 <head>
 <meta charset="UTF-8"/>
 <meta name="viewport" content="width=device-width,initial-scale=1"/>
-<title>SnapURL — Please Wait (Step \${step}/3)</title>
+<title>SnapURL — Please Wait (Step ${step}/3)</title>
 <script async src="https://pagead2.googlesyndication.com/pagead/js/adsbygoogle.js?client=ca-pub-1308261075486301" crossorigin="anonymous"></script>
 <script src="https://pl29650954.effectivecpmnetwork.com/45/f0/f0/45f0f0217d9b1d4c90020d41e0072759.js"></script>
 <style>
@@ -188,11 +192,11 @@ p{color:#8892aa;font-size:13px;margin-bottom:12px}
 <div class="logo">Snap<span>URL</span></div>
 <div class="box">
 <div class="steps">
-  <div class="step \${step>1?'done':'active'}">1</div>
-  <div class="step \${step>2?'done':step===2?'active':'todo'}">2</div>
-  <div class="step \${step===3?'active':'todo'}">3</div>
+  <div class="step ${step>1?'done':'active'}">1</div>
+  <div class="step ${step>2?'done':step===2?'active':'todo'}">2</div>
+  <div class="step ${step===3?'active':'todo'}">3</div>
 </div>
-<h2>Step \${step} of 3 — Almost there!</h2>
+<h2>Step ${step} of 3 — Almost there!</h2>
 <p>Please wait while we prepare your link</p>
 <div class="timer" id="t">15</div>
 
@@ -212,12 +216,12 @@ p{color:#8892aa;font-size:13px;margin-bottom:12px}
 </div>
 
 <button class="btn" id="btn" onclick="goNext()">
-  \${step < 3 ? 'Next Step →' : 'Go to Site →'}
+  ${step < 3 ? 'Next Step &rarr;' : 'Go to Site &rarr;'}
 </button>
 </div>
 <script src="https://pl29650956.effectivecpmnetwork.com/ff/76/34/ff7634d987cf09fe00a2bb121e9b0759.js"></script>
 <script>
-function goNext() { window.location = '\${nextUrl}'; }
+function goNext() { window.location = '${nextUrl}'; }
 let t=15;
 const ti=document.getElementById('t'),btn=document.getElementById('btn');
 const iv=setInterval(()=>{
