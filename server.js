@@ -1,7 +1,7 @@
 const express = require('express');
 const path = require('path');
 const crypto = require('crypto');
-const { MongoClient } = require('mongodb');
+const { MongoClient, ObjectId } = require('mongodb');
 const app = express();
 const PORT = process.env.PORT || 3000;
 const MONGODB_URI = process.env.MONGODB_URI;
@@ -27,7 +27,6 @@ app.use(express.static(path.join(__dirname)));
 function hash(str) { return crypto.createHash('sha256').update(str).digest('hex'); }
 function randCode(len=6) { return Math.random().toString(36).slice(2, 2+len); }
 
-// ── AUTH ──
 app.post('/api/register', async (req, res) => {
   const { username, email, password } = req.body;
   if (!username || !email || !password) return res.status(400).json({ error: 'All fields required' });
@@ -55,7 +54,6 @@ app.get('/api/me', async (req, res) => {
   res.json(safe);
 });
 
-// ── LINKS ──
 app.post('/api/shorten', async (req, res) => {
   const user = await db.collection('users').findOne({ token: req.headers.authorization });
   if (!user) return res.status(401).json({ error: 'Login required!' });
@@ -77,7 +75,6 @@ app.get('/api/my-links', async (req, res) => {
   res.json(links);
 });
 
-// ── WITHDRAW ──
 app.post('/api/withdraw', async (req, res) => {
   const user = await db.collection('users').findOne({ token: req.headers.authorization });
   if (!user) return res.status(401).json({ error: 'Unauthorized' });
@@ -87,7 +84,7 @@ app.post('/api/withdraw', async (req, res) => {
   if (user.balance < amount) return res.status(400).json({ error: 'Insufficient balance!' });
   await db.collection('users').updateOne({ _id: user._id }, { $inc: { balance: -amount } });
   await db.collection('withdrawals').insertOne({ userId: user._id, username: user.username, amount, method, details, status: 'pending', created: new Date() });
-  res.json({ success: true, message: 'Withdrawal request submitted! Admin will process in 24-48 hours.' });
+  res.json({ success: true, message: 'Withdrawal request submitted!' });
 });
 
 app.get('/api/my-withdrawals', async (req, res) => {
@@ -97,7 +94,6 @@ app.get('/api/my-withdrawals', async (req, res) => {
   res.json(list);
 });
 
-// ── ADMIN ──
 function adminAuth(req, res, next) {
   if (req.headers.user === CONFIG.ADMIN_USER && req.headers.pass === CONFIG.ADMIN_PASS) return next();
   res.status(401).json({ error: 'Admin access denied' });
@@ -124,10 +120,8 @@ app.get('/api/admin/withdrawals', adminAuth, async (req, res) => {
 });
 
 app.post('/api/admin/withdraw/:id', adminAuth, async (req, res) => {
-  const { MongoClient: MC, ObjectId } = require('mongodb');
-  const { ObjectId: ObjId } = require('mongodb');
   const { status } = req.body;
-  const w = await db.collection('withdrawals').findOne({ _id: new (require('mongodb').ObjectId)(req.params.id) });
+  const w = await db.collection('withdrawals').findOne({ _id: new ObjectId(req.params.id) });
   if (!w) return res.status(404).json({ error: 'Not found' });
   if (status === 'rejected' && w.status === 'pending') {
     await db.collection('users').updateOne({ _id: w.userId }, { $inc: { balance: w.amount } });
@@ -137,7 +131,6 @@ app.post('/api/admin/withdraw/:id', adminAuth, async (req, res) => {
 });
 
 app.post('/api/admin/user/:id/ban', adminAuth, async (req, res) => {
-  const { ObjectId } = require('mongodb');
   const user = await db.collection('users').findOne({ _id: new ObjectId(req.params.id) });
   if (!user) return res.status(404).json({ error: 'Not found' });
   const newStatus = user.status === 'banned' ? 'active' : 'banned';
@@ -145,7 +138,6 @@ app.post('/api/admin/user/:id/ban', adminAuth, async (req, res) => {
   res.json({ success: true, status: newStatus });
 });
 
-// ── REDIRECT ──
 app.get('/:code', async (req, res) => {
   const reserved = ['about.html','terms.html','privacy.html','admin.html','dashboard.html','register.html','login.html'];
   if (reserved.includes(req.params.code)) return res.sendFile(path.join(__dirname, req.params.code));
@@ -158,27 +150,70 @@ app.get('/:code', async (req, res) => {
   await db.collection('users').updateOne({ _id: link.userId }, { $inc: { balance: earned, totalEarned: earned, totalClicks: 1 } });
 
   res.send(`<!DOCTYPE html>
-<html><head><meta charset="UTF-8"/>
+<html>
+<head>
+<meta charset="UTF-8"/>
 <meta name="viewport" content="width=device-width,initial-scale=1"/>
 <title>SnapURL — Please Wait</title>
 <script async src="https://pagead2.googlesyndication.com/pagead/js/adsbygoogle.js?client=ca-pub-1308261075486301" crossorigin="anonymous"></script>
 <script src="https://pl29650954.effectivecpmnetwork.com/45/f0/f0/45f0f0217d9b1d4c90020d41e0072759.js"></script>
-<style>*{margin:0;padding:0;box-sizing:border-box}body{background:#080b10;color:#e8edf5;font-family:sans-serif;display:flex;align-items:center;justify-content:center;min-height:100vh;flex-direction:column;gap:20px;text-align:center;padding:24px}.logo{font-size:28px;font-weight:900;letter-spacing:-1px}.logo span{color:#00e5ff}.box{background:#141820;border:1px solid #1e2535;border-radius:16px;padding:32px;max-width:400px;width:100%}h2{font-size:20px;margin-bottom:8px}p{color:#8892aa;font-size:14px;margin-bottom:20px}.timer{font-size:48px;font-weight:900;color:#00e5ff;font-family:monospace}.btn{display:none;background:#00e5ff;color:#000;padding:14px 32px;border:none;border-radius:8px;font-size:15px;font-weight:700;cursor:pointer;width:100%;margin-top:16px}</style>
-</head><body>
+<style>
+*{margin:0;padding:0;box-sizing:border-box}
+body{background:#080b10;color:#e8edf5;font-family:sans-serif;display:flex;align-items:center;justify-content:center;min-height:100vh;flex-direction:column;gap:16px;text-align:center;padding:24px}
+.logo{font-size:28px;font-weight:900;letter-spacing:-1px}
+.logo span{color:#00e5ff}
+.box{background:#141820;border:1px solid #1e2535;border-radius:16px;padding:28px;max-width:420px;width:100%}
+h2{font-size:18px;margin-bottom:8px}
+p{color:#8892aa;font-size:13px;margin-bottom:16px}
+.timer{font-size:48px;font-weight:900;color:#00e5ff;font-family:monospace;margin-bottom:16px}
+.btn{display:none;background:#00e5ff;color:#000;padding:14px 32px;border:none;border-radius:8px;font-size:15px;font-weight:700;cursor:pointer;width:100%;margin-top:12px}
+.ad-box{margin:10px 0;text-align:center}
+</style>
+</head>
+<body>
 <div class="logo">Snap<span>URL</span></div>
 <div class="box">
 <h2>You are being redirected</h2>
-<p>Please wait while we redirect you</p>
+<p>Please wait while we redirect you to your destination</p>
 <div class="timer" id="t">5</div>
-<ins class="adsbygoogle" style="display:block" data-ad-client="ca-pub-1308261075486301" data-ad-slot="auto" data-ad-format="auto" data-full-width-responsive="true"></ins>
-<script>(adsbygoogle=window.adsbygoogle||[]).push({})</script>
-<button class="btn" id="btn" onclick="window.location='${link.original}'">Continue →</button>
+
+<div class="ad-box">
+<script async="async" data-cfasync="false" src="https://pl29650957.effectivecpmnetwork.com/e3a3360597029776287aab752f162417/invoke.js"></script>
+<div id="container-e3a3360597029776287aab752f162417"></div>
 </div>
-<script>let t=5;const ti=document.getElementById('t'),btn=document.getElementById('btn');const iv=setInterval(()=>{t--;ti.textContent=t;if(t<=0){clearInterval(iv);ti.textContent='✓';btn.style.display='block';setTimeout(()=>window.location='${link.original}',500)}},1000)</script>
-</body></html>`);
+
+<div class="ad-box">
+<script>atOptions={'key':'9f3e2abb4418d71c3c3e09109a24d27b','format':'iframe','height':60,'width':468,'params':{}}</script>
+<script src="https://www.highperformanceformat.com/9f3e2abb4418d71c3c3e09109a24d27b/invoke.js"></script>
+</div>
+
+<div class="ad-box">
+<script>atOptions={'key':'b76e8b64701bb06eb8ba8f10895e4bb5','format':'iframe','height':250,'width':300,'params':{}}</script>
+<script src="https://www.highperformanceformat.com/b76e8b64701bb06eb8ba8f10895e4bb5/invoke.js"></script>
+</div>
+
+<button class="btn" id="btn" onclick="window.location='${link.original}'">Continue to Site →</button>
+</div>
+
+<script src="https://pl29650956.effectivecpmnetwork.com/ff/76/34/ff7634d987cf09fe00a2bb121e9b0759.js"></script>
+<script>
+let t=5;
+const ti=document.getElementById('t'),btn=document.getElementById('btn');
+const iv=setInterval(()=>{
+  t--;
+  ti.textContent=t;
+  if(t<=0){
+    clearInterval(iv);
+    ti.textContent='✓';
+    btn.style.display='block';
+    setTimeout(()=>window.location='${link.original}',500);
+  }
+},1000);
+</script>
+</body>
+</html>`);
 });
 
-// ── START ──
 connectDB().then(() => {
   app.listen(PORT, () => console.log(`✅ SnapURL running on port ${PORT}`));
 }).catch(err => {
