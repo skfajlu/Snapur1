@@ -149,12 +149,21 @@ app.get('/:code', async (req, res) => {
   await db.collection('links').updateOne({ _id: link._id }, { $inc: { clicks: 1, earnings: earned, [`weekData.${dayIdx}`]: 1 } });
   await db.collection('users').updateOne({ _id: link.userId }, { $inc: { balance: earned, totalEarned: earned, totalClicks: 1 } });
 
-  res.send(`<!DOCTYPE html>
+  const dest = encodeURIComponent(link.original);
+  const smartlink = 'https://www.effectivecpmnetwork.com/vfyqtz053?key=6ed7352ab0dae54ecdac81b78d85306b';
+  const step = parseInt(req.query.step || '1');
+  
+  // After 3 ad pages, go to final destination
+  const nextUrl = step < 3 
+    ? \`\${req.protocol}://\${req.get('host')}/\${link.code}?step=\${step+1}\`
+    : link.original;
+
+  res.send(\`<!DOCTYPE html>
 <html>
 <head>
 <meta charset="UTF-8"/>
 <meta name="viewport" content="width=device-width,initial-scale=1"/>
-<title>SnapURL — Please Wait</title>
+<title>SnapURL — Please Wait (Step \${step}/3)</title>
 <script async src="https://pagead2.googlesyndication.com/pagead/js/adsbygoogle.js?client=ca-pub-1308261075486301" crossorigin="anonymous"></script>
 <script src="https://pl29650954.effectivecpmnetwork.com/45/f0/f0/45f0f0217d9b1d4c90020d41e0072759.js"></script>
 <style>
@@ -163,19 +172,29 @@ body{background:#080b10;color:#e8edf5;font-family:sans-serif;display:flex;align-
 .logo{font-size:28px;font-weight:900;letter-spacing:-1px}
 .logo span{color:#00e5ff}
 .box{background:#141820;border:1px solid #1e2535;border-radius:16px;padding:28px;max-width:420px;width:100%}
-h2{font-size:18px;margin-bottom:8px}
-p{color:#8892aa;font-size:13px;margin-bottom:16px}
-.timer{font-size:48px;font-weight:900;color:#00e5ff;font-family:monospace;margin-bottom:16px}
+h2{font-size:18px;margin-bottom:6px}
+p{color:#8892aa;font-size:13px;margin-bottom:12px}
+.steps{display:flex;justify-content:center;gap:8px;margin-bottom:14px}
+.step{width:28px;height:28px;border-radius:50%;display:flex;align-items:center;justify-content:center;font-size:12px;font-weight:700}
+.step.done{background:#00ff94;color:#000}
+.step.active{background:#00e5ff;color:#000}
+.step.todo{background:#1e2535;color:#8892aa}
+.timer{font-size:48px;font-weight:900;color:#00e5ff;font-family:monospace;margin-bottom:12px}
 .btn{display:none;background:#00e5ff;color:#000;padding:14px 32px;border:none;border-radius:8px;font-size:15px;font-weight:700;cursor:pointer;width:100%;margin-top:12px}
-.ad-box{margin:10px 0;text-align:center}
+.ad-box{margin:8px 0;text-align:center}
 </style>
 </head>
 <body>
 <div class="logo">Snap<span>URL</span></div>
 <div class="box">
-<h2>You are being redirected</h2>
-<p>Please wait while we redirect you to your destination</p>
-<div class="timer" id="t">5</div>
+<div class="steps">
+  <div class="step \${step>1?'done':'active'}">1</div>
+  <div class="step \${step>2?'done':step===2?'active':'todo'}">2</div>
+  <div class="step \${step===3?'active':'todo'}">3</div>
+</div>
+<h2>Step \${step} of 3 — Almost there!</h2>
+<p>Please wait while we prepare your link</p>
+<div class="timer" id="t">15</div>
 
 <div class="ad-box">
 <script async="async" data-cfasync="false" src="https://pl29650957.effectivecpmnetwork.com/e3a3360597029776287aab752f162417/invoke.js"></script>
@@ -192,12 +211,14 @@ p{color:#8892aa;font-size:13px;margin-bottom:16px}
 <script src="https://www.highperformanceformat.com/b76e8b64701bb06eb8ba8f10895e4bb5/invoke.js"></script>
 </div>
 
-<button class="btn" id="btn" onclick="window.location='${link.original}'">Continue to Site →</button>
+<button class="btn" id="btn" onclick="goNext()">
+  \${step < 3 ? 'Next Step →' : 'Go to Site →'}
+</button>
 </div>
-
 <script src="https://pl29650956.effectivecpmnetwork.com/ff/76/34/ff7634d987cf09fe00a2bb121e9b0759.js"></script>
 <script>
-let t=5;
+function goNext() { window.location = '\${nextUrl}'; }
+let t=15;
 const ti=document.getElementById('t'),btn=document.getElementById('btn');
 const iv=setInterval(()=>{
   t--;
@@ -206,12 +227,12 @@ const iv=setInterval(()=>{
     clearInterval(iv);
     ti.textContent='✓';
     btn.style.display='block';
-    setTimeout(()=>window.location='${link.original}',500);
+    setTimeout(goNext, 500);
   }
 },1000);
 </script>
 </body>
-</html>`);
+</html>\`);
 });
 
 connectDB().then(() => {
