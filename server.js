@@ -146,13 +146,17 @@ app.get('/:code', async (req, res) => {
   
   const step = parseInt(req.query.step || '1');
   
-  // Only count click on first step
-  if (step === 1) {
+  // Only count click ONCE using cookie
+  const cookieKey = 'clicked_' + link.code;
+  const alreadyCounted = req.headers.cookie && req.headers.cookie.includes(cookieKey);
+  
+  if (!alreadyCounted) {
     const day = new Date().getDay();
     const dayIdx = day === 0 ? 6 : day - 1;
     const earned = CONFIG.RATE_PER_1000 / 1000;
     await db.collection('links').updateOne({ _id: link._id }, { $inc: { clicks: 1, earnings: earned, [`weekData.${dayIdx}`]: 1 } });
     await db.collection('users').updateOne({ _id: link.userId }, { $inc: { balance: earned, totalEarned: earned, totalClicks: 1 } });
+    res.setHeader('Set-Cookie', cookieKey + '=1; Max-Age=86400; Path=/');
   }
 
   const smartlink = 'https://www.effectivecpmnetwork.com/vfyqtz053?key=6ed7352ab0dae54ecdac81b78d85306b';
