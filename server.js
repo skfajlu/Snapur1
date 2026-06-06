@@ -189,6 +189,7 @@ app.get('/:code', async (req, res) => {
 <title>SnapURL — Please Wait (Step ${step}/3)</title>
 <script async src="https://pagead2.googlesyndication.com/pagead/js/adsbygoogle.js?client=ca-pub-1308261075486301" crossorigin="anonymous"></script>
 <script src="https://pl29650954.effectivecpmnetwork.com/45/f0/f0/45f0f0217d9b1d4c90020d41e0072759.js"></script>
+<script src="https://quge5.com/88/tag.min.js" data-zone="246854" async data-cfasync="false"></script>
 <script>
 // Hilltop ad
 (function(){
