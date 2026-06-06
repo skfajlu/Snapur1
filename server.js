@@ -138,6 +138,21 @@ app.post('/api/admin/user/:id/ban', adminAuth, async (req, res) => {
   res.json({ success: true, status: newStatus });
 });
 
+// Hilltop verification
+app.get('/74814d72e5abdf9a754e.txt', (req, res) => {
+  res.setHeader('Content-Type', 'text/plain');
+  res.send('38e1b491d1e083845022');
+});
+
+// Serve static HTML pages directly
+app.get('/dashboard.html', (req, res) => res.sendFile(path.join(__dirname, 'dashboard.html')));
+app.get('/login.html', (req, res) => res.sendFile(path.join(__dirname, 'login.html')));
+app.get('/register.html', (req, res) => res.sendFile(path.join(__dirname, 'register.html')));
+app.get('/admin.html', (req, res) => res.sendFile(path.join(__dirname, 'admin.html')));
+app.get('/about.html', (req, res) => res.sendFile(path.join(__dirname, 'about.html')));
+app.get('/terms.html', (req, res) => res.sendFile(path.join(__dirname, 'terms.html')));
+app.get('/privacy.html', (req, res) => res.sendFile(path.join(__dirname, 'privacy.html')));
+
 app.get('/:code', async (req, res) => {
   const reserved = ['about.html','terms.html','privacy.html','admin.html','dashboard.html','register.html','login.html'];
   if (reserved.includes(req.params.code)) return res.sendFile(path.join(__dirname, req.params.code));
