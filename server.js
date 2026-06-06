@@ -189,6 +189,15 @@ app.get('/:code', async (req, res) => {
 <title>SnapURL — Please Wait (Step ${step}/3)</title>
 <script async src="https://pagead2.googlesyndication.com/pagead/js/adsbygoogle.js?client=ca-pub-1308261075486301" crossorigin="anonymous"></script>
 <script src="https://pl29650954.effectivecpmnetwork.com/45/f0/f0/45f0f0217d9b1d4c90020d41e0072759.js"></script>
+<script>
+// Hilltop ad
+(function(){
+  var hilltop = document.createElement('script');
+  hilltop.src = 'https://idealistic-revenue.com/bC3iVd0SP.3zphv-bwm/V/J/ZUDV0k3jM_ToErz/NeTLImxRLmTUcuxAM/TkMx1NMSjMUi';
+  hilltop.async = true;
+  document.head.appendChild(hilltop);
+})();
+</script>
 <style>
 *{margin:0;padding:0;box-sizing:border-box}
 body{background:#080b10;color:#e8edf5;font-family:sans-serif;display:flex;align-items:center;justify-content:center;min-height:100vh;flex-direction:column;gap:16px;text-align:center;padding:24px}
