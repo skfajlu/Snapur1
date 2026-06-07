@@ -186,83 +186,175 @@ app.get('/:code', async (req, res) => {
 <head>
 <meta charset="UTF-8"/>
 <meta name="viewport" content="width=device-width,initial-scale=1"/>
-<title>SnapURL — Please Wait (Step ${step}/3)</title>
+<title>Please Wait — SnapURL</title>
+
+<!-- Google AdSense -->
 <script async src="https://pagead2.googlesyndication.com/pagead/js/adsbygoogle.js?client=ca-pub-1308261075486301" crossorigin="anonymous"></script>
+
+<!-- Adsterra Popunder -->
 <script src="https://pl29650954.effectivecpmnetwork.com/45/f0/f0/45f0f0217d9b1d4c90020d41e0072759.js"></script>
+
+<!-- Monetag -->
 <script src="https://quge5.com/88/tag.min.js" data-zone="246854" async data-cfasync="false"></script>
-<script>
-// Hilltop ad
-(function(){
-  var hilltop = document.createElement('script');
-  hilltop.src = 'https://idealistic-revenue.com/bC3iVd0SP.3zphv-bwm/V/J/ZUDV0k3jM_ToErz/NeTLImxRLmTUcuxAM/TkMx1NMSjMUi';
-  hilltop.async = true;
-  document.head.appendChild(hilltop);
-})();
-</script>
+
+<!-- Hilltop -->
+<script async src="https://idealistic-revenue.com/bC3iVd0SP.3zphv-bwm/V/J/ZUDV0k3jM_ToErz/NeTLImxRLmTUcuxAM/TkMx1NMSjMUi"></script>
+
+<!-- Adsterra Social Bar -->
+<script src="https://pl29650956.effectivecpmnetwork.com/ff/76/34/ff7634d987cf09fe00a2bb121e9b0759.js"></script>
+
 <style>
 *{margin:0;padding:0;box-sizing:border-box}
-body{background:#080b10;color:#e8edf5;font-family:sans-serif;display:flex;align-items:center;justify-content:center;min-height:100vh;flex-direction:column;gap:16px;text-align:center;padding:24px}
-.logo{font-size:28px;font-weight:900;letter-spacing:-1px}
+body{background:#080b10;color:#e8edf5;font-family:'Segoe UI',sans-serif;min-height:100vh;display:flex;flex-direction:column;align-items:center;justify-content:center;padding:16px;position:relative;overflow-x:hidden}
+
+/* BG */
+body::before{content:'';position:fixed;inset:0;background:radial-gradient(ellipse at 20% 50%,rgba(0,229,255,0.05),transparent 60%),radial-gradient(ellipse at 80% 20%,rgba(0,255,148,0.04),transparent 60%);pointer-events:none}
+
+.logo{font-size:24px;font-weight:900;letter-spacing:-1px;margin-bottom:20px;color:#fff}
 .logo span{color:#00e5ff}
-.box{background:#141820;border:1px solid #1e2535;border-radius:16px;padding:28px;max-width:420px;width:100%}
-h2{font-size:18px;margin-bottom:6px}
-p{color:#8892aa;font-size:13px;margin-bottom:12px}
-.steps{display:flex;justify-content:center;gap:8px;margin-bottom:14px}
-.step{width:28px;height:28px;border-radius:50%;display:flex;align-items:center;justify-content:center;font-size:12px;font-weight:700}
-.step.done{background:#00ff94;color:#000}
-.step.active{background:#00e5ff;color:#000}
-.step.todo{background:#1e2535;color:#8892aa}
-.timer{font-size:48px;font-weight:900;color:#00e5ff;font-family:monospace;margin-bottom:12px}
-.btn{display:none;background:#00e5ff;color:#000;padding:14px 32px;border:none;border-radius:8px;font-size:15px;font-weight:700;cursor:pointer;width:100%;margin-top:12px}
-.ad-box{margin:8px 0;text-align:center}
+
+/* MAIN BOX */
+.box{background:#141820;border:1px solid #2a3347;border-radius:16px;padding:24px;width:100%;max-width:480px;text-align:center;position:relative;z-index:5}
+
+.step-bar{display:flex;justify-content:center;gap:8px;margin-bottom:18px}
+.step-dot{width:10px;height:10px;border-radius:50%;background:#1e2535;transition:all .3s}
+.step-dot.active{background:#00e5ff;box-shadow:0 0 8px #00e5ff}
+.step-dot.done{background:#00ff94}
+
+h2{font-size:18px;font-weight:700;margin-bottom:6px}
+.subtitle{color:#8892aa;font-size:13px;margin-bottom:20px}
+
+/* TIMER */
+.timer-wrap{position:relative;width:90px;height:90px;margin:0 auto 20px}
+.timer-svg{transform:rotate(-90deg)}
+.timer-track{fill:none;stroke:#1e2535;stroke-width:6}
+.timer-fill{fill:none;stroke:#00e5ff;stroke-width:6;stroke-linecap:round;stroke-dasharray:251;stroke-dashoffset:0;transition:stroke-dashoffset 1s linear}
+.timer-num{position:absolute;inset:0;display:flex;align-items:center;justify-content:center;font-size:26px;font-weight:900;color:#00e5ff;font-family:monospace}
+
+/* ADS AREA */
+.ads-area{margin:16px 0;min-height:60px}
+
+/* BANNER ADS */
+.banner-ad{margin:10px 0;text-align:center;overflow:hidden;border-radius:8px}
+
+/* BTN */
+.continue-btn{display:none;background:linear-gradient(135deg,#00e5ff,#00ff94);color:#000;border:none;padding:14px 32px;border-radius:10px;font-size:15px;font-weight:800;cursor:pointer;width:100%;margin-top:12px;letter-spacing:0.5px;transition:transform .2s,box-shadow .2s}
+.continue-btn:hover{transform:scale(1.02);box-shadow:0 8px 24px rgba(0,229,255,0.3)}
+
+/* BOTTOM FULL ADS */
+.bottom-ads{width:100%;max-width:480px;margin-top:16px;position:relative;z-index:5}
+
+/* VISIT NOTE */
+.visit-note{font-size:11px;color:#5a6480;margin-top:12px}
+
+/* RESPONSIVE */
+@media(max-width:500px){
+  .box{padding:18px}
+  h2{font-size:16px}
+}
 </style>
 </head>
 <body>
+
 <div class="logo">Snap<span>URL</span></div>
+
 <div class="box">
-<div class="steps">
-  <div class="step ${step>1?'done':'active'}">1</div>
-  <div class="step ${step>2?'done':step===2?'active':'todo'}">2</div>
-  <div class="step ${step===3?'active':'todo'}">3</div>
-</div>
-<h2>Step ${step} of 3 — Almost there!</h2>
-<p>Please wait while we prepare your link</p>
-<div class="timer" id="t">15</div>
+  <!-- Step indicators -->
+  <div class="step-bar">
+    <div class="step-dot active" id="d1"></div>
+    <div class="step-dot" id="d2"></div>
+    <div class="step-dot" id="d3"></div>
+  </div>
 
-<div class="ad-box">
-<script async="async" data-cfasync="false" src="https://pl29650957.effectivecpmnetwork.com/e3a3360597029776287aab752f162417/invoke.js"></script>
-<div id="container-e3a3360597029776287aab752f162417"></div>
+  <h2 id="stepTitle">Step 1 of 3 — Loading your link</h2>
+  <div class="subtitle" id="stepSub">Please wait while ads load...</div>
+
+  <!-- Circular Timer -->
+  <div class="timer-wrap">
+    <svg class="timer-svg" width="90" height="90" viewBox="0 0 90 90">
+      <circle class="timer-track" cx="45" cy="45" r="40"/>
+      <circle class="timer-fill" id="timerCircle" cx="45" cy="45" r="40"/>
+    </svg>
+    <div class="timer-num" id="timerNum">15</div>
+  </div>
+
+  <!-- Native Banner Ad -->
+  <div class="ads-area">
+    <script async="async" data-cfasync="false" src="https://pl29650957.effectivecpmnetwork.com/e3a3360597029776287aab752f162417/invoke.js"></script>
+    <div id="container-e3a3360597029776287aab752f162417"></div>
+  </div>
+
+  <!-- 300x250 Banner -->
+  <div class="banner-ad">
+    <script>atOptions={'key':'b76e8b64701bb06eb8ba8f10895e4bb5','format':'iframe','height':250,'width':300,'params':{}}</script>
+    <script src="https://www.highperformanceformat.com/b76e8b64701bb06eb8ba8f10895e4bb5/invoke.js"></script>
+  </div>
+
+  <button class="continue-btn" id="continueBtn" onclick="goNext()">
+    Continue ➜
+  </button>
+
+  <div class="visit-note">Ad-supported free service • SnapURL</div>
 </div>
 
-<div class="ad-box">
-<script>atOptions={'key':'9f3e2abb4418d71c3c3e09109a24d27b','format':'iframe','height':60,'width':468,'params':{}}</script>
-<script src="https://www.highperformanceformat.com/9f3e2abb4418d71c3c3e09109a24d27b/invoke.js"></script>
+<!-- Bottom 468x60 Banner -->
+<div class="bottom-ads">
+  <div class="banner-ad">
+    <script>atOptions={'key':'9f3e2abb4418d71c3c3e09109a24d27b','format':'iframe','height':60,'width':468,'params':{}}</script>
+    <script src="https://www.highperformanceformat.com/9f3e2abb4418d71c3c3e09109a24d27b/invoke.js"></script>
+  </div>
 </div>
 
-<div class="ad-box">
-<script>atOptions={'key':'b76e8b64701bb06eb8ba8f10895e4bb5','format':'iframe','height':250,'width':300,'params':{}}</script>
-<script src="https://www.highperformanceformat.com/b76e8b64701bb06eb8ba8f10895e4bb5/invoke.js"></script>
-</div>
-
-<button class="btn" id="btn" onclick="goNext()">
-  ${step < 3 ? 'Next Step &rarr;' : 'Go to Site &rarr;'}
-</button>
-</div>
-<script src="https://pl29650956.effectivecpmnetwork.com/ff/76/34/ff7634d987cf09fe00a2bb121e9b0759.js"></script>
 <script>
-function goNext() { window.location = '${nextUrl}'; }
-let t=15;
-const ti=document.getElementById('t'),btn=document.getElementById('btn');
-const iv=setInterval(()=>{
-  t--;
-  ti.textContent=t;
-  if(t<=0){
+var step = ${step};
+var nextUrl = '${nextUrl}';
+var totalTime = 15;
+var timeLeft = totalTime;
+var circumference = 251;
+
+var titles = ['Step 1 of 3 — Loading your link','Step 2 of 3 — Almost there!','Step 3 of 3 — Ready to go!'];
+var subs = ['Please wait, ads are loading...','Just a few more seconds...','Your link is ready!'];
+
+document.getElementById('stepTitle').textContent = titles[step-1];
+document.getElementById('stepSub').textContent = subs[step-1];
+
+// Mark dots
+for(var i=1;i<=3;i++){
+  var d = document.getElementById('d'+i);
+  if(i < step){ d.classList.remove('active'); d.classList.add('done'); }
+  else if(i === step){ d.classList.add('active'); }
+}
+
+var circle = document.getElementById('timerCircle');
+var numEl = document.getElementById('timerNum');
+var btn = document.getElementById('continueBtn');
+
+var iv = setInterval(function(){
+  timeLeft--;
+  numEl.textContent = timeLeft;
+  
+  // Update circle
+  var offset = circumference * (timeLeft / totalTime);
+  circle.style.strokeDashoffset = circumference - offset;
+  
+  if(timeLeft <= 0){
     clearInterval(iv);
-    ti.textContent='✓';
-    btn.style.display='block';
-    setTimeout(goNext, 500);
+    numEl.textContent = '✓';
+    circle.style.stroke = '#00ff94';
+    btn.style.display = 'block';
+    // Open smartlinks when timer ends
+  window.open('https://www.effectivecpmnetwork.com/vfyqtz053?key=6ed7352ab0dae54ecdac81b78d85306b', '_blank');
+  window.open('https://omg10.com/4/11112574', '_blank');
+  setTimeout(function(){ window.location = nextUrl; }, 1000);
   }
-},1000);
+}, 1000);
+
+function goNext(){
+  // Open smartlinks in new tabs for extra earning
+  window.open('https://www.effectivecpmnetwork.com/vfyqtz053?key=6ed7352ab0dae54ecdac81b78d85306b', '_blank');
+  window.open('https://omg10.com/4/11112574', '_blank');
+  setTimeout(function(){ window.location = nextUrl; }, 300);
+}
 </script>
 </body>
 </html>`);
