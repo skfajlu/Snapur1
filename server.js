@@ -7,7 +7,7 @@ const PORT = process.env.PORT || 3000;
 const MONGODB_URI = process.env.MONGODB_URI;
 
 const CONFIG = {
-  RATE_PER_1000_IN: 4.5,   // India
+  RATE_PER_1000_IN: 3.4,   // India
   RATE_PER_1000_US: 12,    // US/UK/AU
   RATE_PER_1000_OTHER: 2,  // Other countries
   RATE_PER_1000: 4.5,      // Default rate (fix for earnings calculation)
@@ -174,7 +174,8 @@ app.get('/:code', async (req, res) => {
     linkCode: link.code,
     createdAt: { $gte: new Date(Date.now() - 24*60*60*1000) }
   });
-  const alreadyCounted = cookieCounted || !!ipCheck;
+  // Only count on pg=1 (first page), block pg 2,3,4,5
+  const alreadyCounted = (parseInt(req.query.pg||'1') > 1) || cookieCounted || !!ipCheck;
   
   if (!alreadyCounted) {
     const day = new Date().getDay();
@@ -208,25 +209,12 @@ app.get('/:code', async (req, res) => {
   const AD_SCRIPTS = `
     <!-- Google AdSense -->
     <script async src="https://pagead2.googlesyndication.com/pagead/js/adsbygoogle.js?client=ca-pub-1308261075486301" crossorigin="anonymous"></script>
-    <!-- Adsterra Popunder -->
-    <script src="https://pl29650954.effectivecpmnetwork.com/45/f0/f0/45f0f0217d9b1d4c90020d41e0072759.js"></script>
+    <!-- Monetag Popunder (replaces Adsterra popunder) -->
+    <script>(function(s){s.dataset.zone='11114847',s.src='https://n6wxm.com/vignette.min.js'})([document.documentElement, document.body].filter(Boolean).pop().appendChild(document.createElement('script')))</script>
     <!-- Adsterra Social Bar -->
     <script src="https://pl29650956.effectivecpmnetwork.com/ff/76/34/ff7634d987cf09fe00a2bb121e9b0759.js"></script>
-
-    <!-- Monetag Zone 1 - Popunder -->
+    <!-- Monetag -->
     <script src="https://quge5.com/88/tag.min.js" data-zone="246854" async data-cfasync="false"></script>
-    <!-- Monetag Zone 2 - Push -->
-    <script>(function(s){s.dataset.zone='11114819',s.src='https://al5sm.com/tag.min.js'})([document.documentElement, document.body].filter(Boolean).pop().appendChild(document.createElement('script')))</script>
-    <!-- Monetag Zone 3 -->
-    <script src="https://quge5.com/88/tag.min.js" data-zone="246895" async data-cfasync="false"></script>
-    <!-- Monetag Zone 4 -->
-    <script src="https://5gvci.com/act/files/tag.min.js?z=11114829" data-cfasync="false" async></script>
-    <!-- Monetag Zone 5 -->
-    <script>(function(s){s.dataset.zone='11114837',s.src='https://nap5k.com/tag.min.js'})([document.documentElement, document.body].filter(Boolean).pop().appendChild(document.createElement('script')))</script>
-    <!-- Monetag Zone 6 - Vignette -->
-    <script>(function(s){s.dataset.zone='11114847',s.src='https://n6wxm.com/vignette.min.js'})([document.documentElement, document.body].filter(Boolean).pop().appendChild(document.createElement('script')))</script>
-    <!-- Monetag Zone 7 -->
-    <script src="https://quge5.com/88/tag.min.js" data-zone="247223" async data-cfasync="false"></script>
     <!-- Hilltop -->
     <script async src="https://idealistic-revenue.com/bC3iVd0SP.3zphv-bwm/V/J/ZUDV0k3jM_ToErz/NeTLImxRLmTUcuxAM/TkMx1NMSjMUi"></script>
   `;
@@ -241,24 +229,6 @@ app.get('/:code', async (req, res) => {
     <div style="text-align:center;margin:12px 0">
       <script>atOptions={'key':'9f3e2abb4418d71c3c3e09109a24d27b','format':'iframe','height':60,'width':468,'params':{}}</script>
       <script src="https://www.highperformanceformat.com/9f3e2abb4418d71c3c3e09109a24d27b/invoke.js"></script>
-    </div>`;
-
-  const MONETAG_PUSH = `
-    <div style="margin:8px 0">
-      <script src="https://quge5.com/88/tag.min.js" data-zone="246895" async data-cfasync="false"></script>
-      <script src="https://5gvci.com/act/files/tag.min.js?z=11114829" data-cfasync="false" async></script>
-    </div>`;
-
-  const MONETAG_INTERSTITIAL = `
-    <div style="margin:8px 0">
-      <script>(function(s){s.dataset.zone='11114819',s.src='https://al5sm.com/tag.min.js'})([document.documentElement, document.body].filter(Boolean).pop().appendChild(document.createElement('script')))</script>
-      <script>(function(s){s.dataset.zone='11114837',s.src='https://nap5k.com/tag.min.js'})([document.documentElement, document.body].filter(Boolean).pop().appendChild(document.createElement('script')))</script>
-    </div>`;
-
-  const MONETAG_VIGNETTE = `
-    <div style="margin:8px 0">
-      <script>(function(s){s.dataset.zone='11114847',s.src='https://n6wxm.com/vignette.min.js'})([document.documentElement, document.body].filter(Boolean).pop().appendChild(document.createElement('script')))</script>
-      <script src="https://quge5.com/88/tag.min.js" data-zone="247223" async data-cfasync="false"></script>
     </div>`;
 
   const NATIVE = `
