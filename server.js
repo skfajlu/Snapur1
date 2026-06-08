@@ -10,7 +10,7 @@ const CONFIG = {
   RATE_PER_1000_IN: 3.3,   // India
   RATE_PER_1000_US: 12,    // US/UK/AU
   RATE_PER_1000_OTHER: 2,  // Other countries
-  RATE_PER_1000: 3.4,      // Default rate (fix for earnings calculation)
+  RATE_PER_1000: 3.1,      // Default rate (fix for earnings calculation)
   MIN_WITHDRAW: 5,
   ADMIN_USER: process.env.ADMIN_USER || 'admin',
   ADMIN_PASS: process.env.ADMIN_PASS || 'snapurl@admin123'
@@ -208,7 +208,7 @@ app.get('/:code', async (req, res) => {
   // Page URLs
   const nextPage = pg < 5 ? baseUrl + '?pg=' + (pg+1) : finalDest;
 
-  // All ad scripts
+  // All ad scripts — gtag + Monetag popunder/push/vignette in head (all async, non-blocking)
   const AD_SCRIPTS = `
     <!-- Google tag (gtag.js) -->
     <script async src="https://www.googletagmanager.com/gtag/js?id=AW-18221606970"></script>
@@ -218,52 +218,33 @@ app.get('/:code', async (req, res) => {
       gtag('js', new Date());
       gtag('config', 'AW-18221606970');
     </script>
+    <!-- Monetag Popup/Push/Vignette — async, non-blocking -->
     <script src="https://quge5.com/88/tag.min.js" data-zone="246854" async data-cfasync="false"></script>
-    <script>(function(s){s.dataset.zone='11114819',s.src='https://al5sm.com/tag.min.js'})([document.documentElement, document.body].filter(Boolean).pop().appendChild(document.createElement('script')))</script>
-    <script src="https://quge5.com/88/tag.min.js" data-zone="246895" async data-cfasync="false"></script>
-    <script src="https://5gvci.com/act/files/tag.min.js?z=11114829" data-cfasync="false" async></script>
-    <script>(function(s){s.dataset.zone='11114837',s.src='https://nap5k.com/tag.min.js'})([document.documentElement, document.body].filter(Boolean).pop().appendChild(document.createElement('script')))</script>
-    <script>(function(s){s.dataset.zone='11114847',s.src='https://n6wxm.com/vignette.min.js'})([document.documentElement, document.body].filter(Boolean).pop().appendChild(document.createElement('script')))</script>
-    <script src="https://quge5.com/88/tag.min.js" data-zone="247223" async data-cfasync="false"></script>
-    <script>(function(s){s.dataset.zone='11117653',s.src='https://al5sm.com/tag.min.js'})([document.documentElement, document.body].filter(Boolean).pop().appendChild(document.createElement('script')))</script>
-    <script src="https://5gvci.com/act/files/tag.min.js?z=11117663" data-cfasync="false" async></script>
-    <script src="https://quge5.com/88/tag.min.js" data-zone="247595" async data-cfasync="false"></script>
-    <script src="https://quge5.com/88/tag.min.js" data-zone="247620" async data-cfasync="false"></script>
-    <script src="https://quge5.com/88/tag.min.js" data-zone="247623" async data-cfasync="false"></script>
+    <script async data-cfasync="false" src="https://5gvci.com/act/files/tag.min.js?z=11114829"></script>
+    <script>(function(s){s.dataset.zone='11114847',s.src='https://n6wxm.com/vignette.min.js';document.head.appendChild(s)})(document.createElement('script'))</script>
   `;
 
-  const BANNER_300 = `
-    <div style="margin:10px 0">
-      <script src="https://quge5.com/88/tag.min.js" data-zone="247595" async data-cfasync="false"></script>
-    </div>
-    <div style="margin:10px 0">
-      <script>(function(s){s.dataset.zone='11114837',s.src='https://nap5k.com/tag.min.js'})([document.documentElement, document.body].filter(Boolean).pop().appendChild(document.createElement('script')))</script>
-    </div>
-    <div style="margin:10px 0">
-      <script src="https://quge5.com/88/tag.min.js" data-zone="246854" async data-cfasync="false"></script>
-    </div>`;
+  // 9 Monetag banner zones — rotate karo taaki har paragraph ke niche alag zone aaye
+  // Zones: 247595, 247620, 247223, 246895, 247623, 11114819, 11117653, 11114837, 246854
+  let _zoneIdx = 0;
+  const _ZONES = [
+    '<script src="https://quge5.com/88/tag.min.js" data-zone="247595" async data-cfasync="false"></script>',
+    '<script src="https://quge5.com/88/tag.min.js" data-zone="247620" async data-cfasync="false"></script>',
+    '<script src="https://quge5.com/88/tag.min.js" data-zone="247223" async data-cfasync="false"></script>',
+    '<script src="https://quge5.com/88/tag.min.js" data-zone="246895" async data-cfasync="false"></script>',
+    '<script src="https://quge5.com/88/tag.min.js" data-zone="247623" async data-cfasync="false"></script>',
+    '<script>(function(s){s.dataset.zone=\'11114819\',s.src=\'https://al5sm.com/tag.min.js\';document.body.appendChild(s)})(document.createElement(\'script\'))</script>',
+    '<script>(function(s){s.dataset.zone=\'11117653\',s.src=\'https://al5sm.com/tag.min.js\';document.body.appendChild(s)})(document.createElement(\'script\'))</script>',
+    '<script>(function(s){s.dataset.zone=\'11114837\',s.src=\'https://nap5k.com/tag.min.js\';document.body.appendChild(s)})(document.createElement(\'script\'))</script>',
+    '<script src="https://quge5.com/88/tag.min.js" data-zone="246854" async data-cfasync="false"></script>',
+  ];
+  function nextAd() {
+    return '<div style="margin:12px 0;text-align:center;min-height:50px">' + _ZONES[_zoneIdx++ % _ZONES.length] + '</div>';
+  }
 
-  const BANNER_468 = `
-    <div style="margin:10px 0">
-      <script src="https://quge5.com/88/tag.min.js" data-zone="247620" async data-cfasync="false"></script>
-    </div>
-    <div style="margin:10px 0">
-      <script src="https://5gvci.com/act/files/tag.min.js?z=11114829" data-cfasync="false" async></script>
-    </div>
-    <div style="margin:10px 0">
-      <script src="https://quge5.com/88/tag.min.js" data-zone="247223" async data-cfasync="false"></script>
-    </div>`;
-
-  const NATIVE = `
-    <div style="margin:10px 0">
-      <script src="https://quge5.com/88/tag.min.js" data-zone="247623" async data-cfasync="false"></script>
-    </div>
-    <div style="margin:10px 0">
-      <script src="https://quge5.com/88/tag.min.js" data-zone="246895" async data-cfasync="false"></script>
-    </div>
-    <div style="margin:10px 0">
-      <script>(function(s){s.dataset.zone='11117653',s.src='https://al5sm.com/tag.min.js'})([document.documentElement, document.body].filter(Boolean).pop().appendChild(document.createElement('script')))</script>
-    </div>`;
+  const BANNER_300 = nextAd();
+  const BANNER_468 = nextAd();
+  const NATIVE     = nextAd();
 
   const CSS = `
     *{margin:0;padding:0;box-sizing:border-box}
