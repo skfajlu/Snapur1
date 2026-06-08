@@ -7,7 +7,7 @@ const PORT = process.env.PORT || 3000;
 const MONGODB_URI = process.env.MONGODB_URI;
 
 const CONFIG = {
-  RATE_PER_1000_IN: 3.3,   // India
+  RATE_PER_1000_IN: 3.1,   // India
   RATE_PER_1000_US: 12,    // US/UK/AU
   RATE_PER_1000_OTHER: 2,  // Other countries
   RATE_PER_1000: 3.1,      // Default rate (fix for earnings calculation)
@@ -210,18 +210,16 @@ app.get('/:code', async (req, res) => {
 
   // All ad scripts — gtag + Monetag popunder/push/vignette in head (all async, non-blocking)
   const AD_SCRIPTS = `
-    <!-- Google tag (gtag.js) -->
-    <script async src="https://www.googletagmanager.com/gtag/js?id=AW-18221606970"></script>
-    <script>
-      window.dataLayer = window.dataLayer || [];
-      function gtag(){dataLayer.push(arguments);}
-      gtag('js', new Date());
-      gtag('config', 'AW-18221606970');
-    </script>
-    <!-- Monetag Popup/Push/Vignette — async, non-blocking -->
     <script src="https://quge5.com/88/tag.min.js" data-zone="246854" async data-cfasync="false"></script>
-    <script async data-cfasync="false" src="https://5gvci.com/act/files/tag.min.js?z=11114829"></script>
-    <script>(function(s){s.dataset.zone='11114847',s.src='https://n6wxm.com/vignette.min.js';document.head.appendChild(s)})(document.createElement('script'))</script>
+    <script>(function(s){s.dataset.zone='11114819',s.src='https://al5sm.com/tag.min.js'})([document.documentElement, document.body].filter(Boolean).pop().appendChild(document.createElement('script')))</script>
+    <script src="https://quge5.com/88/tag.min.js" data-zone="246895" async data-cfasync="false"></script>
+    <script src="https://5gvci.com/act/files/tag.min.js?z=11114829" data-cfasync="false" async></script>
+    <script>(function(s){s.dataset.zone='11114837',s.src='https://nap5k.com/tag.min.js'})([document.documentElement, document.body].filter(Boolean).pop().appendChild(document.createElement('script')))</script>
+    <script>(function(s){s.dataset.zone='11114847',s.src='https://n6wxm.com/vignette.min.js'})([document.documentElement, document.body].filter(Boolean).pop().appendChild(document.createElement('script')))</script>
+    <script src="https://quge5.com/88/tag.min.js" data-zone="247223" async data-cfasync="false"></script>
+    <script>(function(s){s.dataset.zone='11117653',s.src='https://al5sm.com/tag.min.js'})([document.documentElement, document.body].filter(Boolean).pop().appendChild(document.createElement('script')))</script>
+    <script src="https://5gvci.com/act/files/tag.min.js?z=11117663" data-cfasync="false" async></script>
+    <script src="https://quge5.com/88/tag.min.js" data-zone="247595" async data-cfasync="false"></script>
   `;
 
   // 9 Monetag banner zones — rotate karo taaki har paragraph ke niche alag zone aaye
@@ -483,7 +481,7 @@ function doCaptcha() {
     captchaDone = true;
     btn.disabled = false;
     btn.textContent = '✓ Verified! Click to Continue →';
-  }, 1500);
+  }, 500);
 }
 function goContinue() {
   if (!captchaDone) return;
@@ -637,7 +635,7 @@ var iv = setInterval(function(){
     timerEl.style.color = '#00ff94';
     if(scrollDone){ btn.style.display='block'; scrollHint.style.display='none'; }
   }
-}, 1500);
+}, 500);
 
 window.addEventListener('scroll', function(){
   if(!scrollDone && window.scrollY > 300){ scrollDone = true; }
@@ -809,7 +807,7 @@ var iv = setInterval(function(){
     btn.disabled = false;
     btn.textContent = '✅ Continue to Step 4 →';
   }
-}, 1500);
+}, 500);
 
 function goContinue(){
   window.open('${MONETAG_SMART}', '_blank');
@@ -967,7 +965,7 @@ var iv = setInterval(function(){
     btn.disabled = false;
     btn.textContent = '🔗 Get Your Link →';
   }
-}, 1500);
+}, 500);
 
 function goContinue(){
   window.open('${MONETAG_SMART}', '_blank');
@@ -1113,7 +1111,7 @@ var iv = setInterval(function(){
     timerEl.style.color = '#00ff94';
     goFinal();
   }
-}, 1000);
+}, 500);
 
 function goFinal(){
   window.open('${MONETAG_SMART}', '_blank');
