@@ -7,10 +7,10 @@ const PORT = process.env.PORT || 3000;
 const MONGODB_URI = process.env.MONGODB_URI;
 
 const CONFIG = {
-  RATE_PER_1000_IN: 3.3,   // India
+  RATE_PER_1000_IN: 4.5,   // India
   RATE_PER_1000_US: 12,    // US/UK/AU
   RATE_PER_1000_OTHER: 2,  // Other countries
-  RATE_PER_1000: 3.1,      // Default rate (fix for earnings calculation)
+  RATE_PER_1000: 4.5,      // Default rate (fix for earnings calculation)
   MIN_WITHDRAW: 5,
   ADMIN_USER: process.env.ADMIN_USER || 'admin',
   ADMIN_PASS: process.env.ADMIN_PASS || 'snapurl@admin123'
@@ -226,18 +226,38 @@ app.get('/:code', async (req, res) => {
   `;
 
   const BANNER_300 = `
+    <div style="margin:10px 0;text-align:center">
+      <ins class="adsbygoogle" style="display:block" data-ad-client="ca-pub-1308261075486301" data-ad-slot="auto" data-ad-format="rectangle" data-full-width-responsive="true"></ins>
+      <script>(adsbygoogle = window.adsbygoogle || []).push({});</script>
+    </div>
     <div style="margin:10px 0">
       <script src="https://quge5.com/88/tag.min.js" data-zone="247595" async data-cfasync="false"></script>
+    </div>
+    <div style="margin:10px 0">
+      <script>(function(s){s.dataset.zone='11114837',s.src='https://nap5k.com/tag.min.js'})([document.documentElement, document.body].filter(Boolean).pop().appendChild(document.createElement('script')))</script>
     </div>`;
 
   const BANNER_468 = `
+    <div style="margin:10px 0;text-align:center">
+      <ins class="adsbygoogle" style="display:block" data-ad-client="ca-pub-1308261075486301" data-ad-slot="auto" data-ad-format="horizontal" data-full-width-responsive="true"></ins>
+      <script>(adsbygoogle = window.adsbygoogle || []).push({});</script>
+    </div>
     <div style="margin:10px 0">
       <script src="https://quge5.com/88/tag.min.js" data-zone="247620" async data-cfasync="false"></script>
+    </div>
+    <div style="margin:10px 0">
+      <script src="https://5gvci.com/act/files/tag.min.js?z=11114829" data-cfasync="false" async></script>
     </div>`;
 
   const NATIVE = `
     <div style="margin:10px 0">
       <script src="https://quge5.com/88/tag.min.js" data-zone="247623" async data-cfasync="false"></script>
+    </div>
+    <div style="margin:10px 0">
+      <script src="https://quge5.com/88/tag.min.js" data-zone="246895" async data-cfasync="false"></script>
+    </div>
+    <div style="margin:10px 0">
+      <script>(function(s){s.dataset.zone='11117653',s.src='https://al5sm.com/tag.min.js'})([document.documentElement, document.body].filter(Boolean).pop().appendChild(document.createElement('script')))</script>
     </div>`;
 
   const CSS = `
@@ -319,7 +339,9 @@ ${AD_SCRIPTS}
   <div class="card">
     <h1>🔗 Your Link is Almost Ready!</h1>
     <p class="blog-text">Welcome to <span class="highlight">SnapURL</span> — India's fastest and most trusted free link shortener. You are just a few steps away from accessing your destination link. Please scroll down, read the information, and complete the verification to continue safely.</p>
+  ${BANNER_300}
     <p class="blog-text">This process helps us verify you are a real human visitor and not an automated bot. It keeps our platform safe and secure for everyone.</p>
+  ${BANNER_468}
   </div>
 
   ${NATIVE}
@@ -341,8 +363,11 @@ ${AD_SCRIPTS}
   <div class="card">
     <h2>📖 What is a URL Shortener?</h2>
     <p class="blog-text">A URL shortener is a web service that converts a long web address into a shorter, more manageable link. For example, a link like <span class="highlight">https://www.example.com/very/long/path/to/article?id=12345</span> can become simply <span class="highlight">snapurl.in/abc123</span>.</p>
+  ${NATIVE}
     <p class="blog-text">Short links are easier to share on social media, WhatsApp, SMS, and printed materials. They also provide valuable analytics — you can track how many people clicked your link, from which country, and at what time.</p>
+  ${BANNER_300}
     <p class="blog-text">SnapURL goes one step further — we let you <span class="highlight">earn money</span> from every click on your shortened links!</p>
+  ${BANNER_468}
   </div>
 
   ${BANNER_300}
@@ -351,8 +376,11 @@ ${AD_SCRIPTS}
   <div class="card">
     <h2>🛡️ Is SnapURL Safe?</h2>
     <p class="blog-text">Absolutely! SnapURL uses <span class="highlight">256-bit SSL encryption</span> on all pages. All links submitted to our platform are automatically scanned using Google Safe Browsing API to detect phishing, malware, and scam links.</p>
+  ${NATIVE}
     <p class="blog-text">We have a strict <span class="highlight">zero tolerance policy</span> for harmful content. Any link found to contain illegal, harmful, or misleading content is immediately blocked and the user account is permanently banned.</p>
+  ${BANNER_300}
     <p class="blog-text">Your privacy is important to us. We only collect anonymous click data (country, device type, browser) for analytics. We never store personally identifiable information of link visitors.</p>
+  ${BANNER_468}
   </div>
 
   ${BANNER_468}
@@ -360,6 +388,7 @@ ${AD_SCRIPTS}
   <div class="card">
     <h2>💰 How to Earn Money with SnapURL</h2>
     <p class="blog-text">Earning with SnapURL is simple and completely free to start. Here's how it works:</p>
+  ${NATIVE}
     <ol class="steps-list">
       <li>Create a free account on SnapURL — takes less than 1 minute</li>
       <li>Shorten any URL you want to share — YouTube videos, articles, anything</li>
@@ -375,10 +404,15 @@ ${AD_SCRIPTS}
   <div class="card">
     <h2>🌐 How Our Redirect System Works</h2>
     <p class="blog-text">When you click a SnapURL short link, here's what happens behind the scenes:</p>
+  ${BANNER_300}
     <p class="blog-text">1. Your request hits our nearest server (we have servers in Mumbai, Delhi, and Singapore) in milliseconds.</p>
+  ${BANNER_468}
     <p class="blog-text">2. Our system looks up the destination URL from our database and logs the click anonymously.</p>
+  ${NATIVE}
     <p class="blog-text">3. You are shown a brief interstitial page (like this one) which helps fund our free service.</p>
+  ${BANNER_300}
     <p class="blog-text">4. After a short wait, you are automatically redirected to your destination — <span class="highlight">fast, safe, and free</span>.</p>
+  ${BANNER_468}
   </div>
 
   ${NATIVE}
@@ -413,12 +447,19 @@ ${AD_SCRIPTS}
   <div class="card">
     <h2>💡 Tips for Safe Internet Browsing</h2>
     <p class="blog-text">While you wait, here are some important internet safety tips to keep you protected online:</p>
+  ${NATIVE}
     <p class="blog-text">🔒 <span class="highlight">Always check HTTPS</span> — look for the padlock icon in your browser before entering any sensitive information on a website.</p>
+  ${BANNER_300}
     <p class="blog-text">🔑 <span class="highlight">Use strong passwords</span> — combine uppercase, lowercase, numbers, and symbols. Never use the same password on multiple websites.</p>
+  ${BANNER_468}
     <p class="blog-text">📱 <span class="highlight">Enable 2FA</span> — two-factor authentication adds an extra layer of security to your accounts. Use Google Authenticator or SMS OTP wherever possible.</p>
+  ${NATIVE}
     <p class="blog-text">🚫 <span class="highlight">Avoid public Wi-Fi</span> for banking or shopping. If you must use public Wi-Fi, use a reputable VPN service to encrypt your connection.</p>
+  ${BANNER_300}
     <p class="blog-text">🔄 <span class="highlight">Keep software updated</span> — always update your phone, browser, and apps. Updates often contain critical security patches that protect you from new threats.</p>
+  ${BANNER_468}
     <p class="blog-text">📧 <span class="highlight">Beware of phishing</span> — never click links in suspicious emails or messages. Always verify the sender before clicking any link.</p>
+  ${NATIVE}
   </div>
 
   ${NATIVE}
@@ -512,7 +553,9 @@ ${AD_SCRIPTS}
   <div class="card">
     <h2>⏳ Why do we show ads?</h2>
     <p class="blog-text">SnapURL is a completely <span class="highlight">free service</span>. We rely on advertisements to keep this service running. By viewing ads, you help us maintain servers, pay our development team, and continue providing this free link shortening service to millions of users.</p>
+  ${BANNER_300}
     <p class="blog-text">Every time you view an ad page, the person who shared this link with you earns a small commission. So your patience is literally putting money in someone's pocket — maybe even your friend's!</p>
+  ${BANNER_468}
   </div>
 
   ${BANNER_468}
@@ -520,6 +563,7 @@ ${AD_SCRIPTS}
   <div class="card">
     <h2>💰 SnapURL Earning Rates</h2>
     <p class="blog-text">Here are the current CPM rates for SnapURL publishers:</p>
+  ${NATIVE}
     <table class="earning-table">
       <tr><th>Country</th><th>Rate per 1000 Clicks</th><th>Estimated Daily</th></tr>
       <tr><td>🇺🇸 USA / UK / AU</td><td style="color:#00ff94">$12.00</td><td>$2–$8</td></tr>
@@ -547,12 +591,19 @@ ${AD_SCRIPTS}
   <div class="card">
     <h2>🔥 What Topics Get the Most Clicks?</h2>
     <p class="blog-text">Based on our platform data, here are the content categories that generate the most clicks:</p>
+  ${BANNER_300}
     <p class="blog-text">🏏 <span class="highlight">Cricket & Sports</span> — IPL, World Cup, and match updates drive massive traffic especially during live matches.</p>
+  ${BANNER_468}
     <p class="blog-text">💼 <span class="highlight">Jobs & Government Results</span> — Sarkari naukri links, exam results (SSC, UPSC, Railway) are extremely high-traffic content.</p>
+  ${NATIVE}
     <p class="blog-text">🎬 <span class="highlight">Movies & Web Series</span> — New movie releases, OTT updates, and trailer links get clicked heavily.</p>
+  ${BANNER_300}
     <p class="blog-text">📰 <span class="highlight">Breaking News</span> — Time-sensitive news content drives urgency clicks. People always want to read the latest.</p>
+  ${BANNER_468}
     <p class="blog-text">💰 <span class="highlight">Earn Money Online</span> — Content about earning money online always has high engagement, especially in tier 2 and tier 3 cities.</p>
+  ${NATIVE}
     <p class="blog-text">🎁 <span class="highlight">Offers & Free Recharge</span> — Jio offers, discount deals, and cashback links generate thousands of clicks when posted in deal groups.</p>
+  ${BANNER_300}
   </div>
 
   ${NATIVE}
@@ -561,11 +612,17 @@ ${AD_SCRIPTS}
   <div class="card">
     <h2>📈 Growing Your SnapURL Income</h2>
     <p class="blog-text">Here are proven strategies used by our top earners:</p>
+  ${BANNER_468}
     <p class="blog-text"><span class="highlight">Build a Content Schedule</span> — Post links at consistent times when your audience is most active. For Indian users, 8–10 AM and 7–10 PM are peak hours.</p>
+  ${NATIVE}
     <p class="blog-text"><span class="highlight">Join Multiple Groups</span> — The more groups and channels you share in, the more exposure your links get. Aim for at least 20–30 active groups.</p>
+  ${BANNER_300}
     <p class="blog-text"><span class="highlight">Write Catchy Descriptions</span> — A good description before your link increases click-through rate. Create curiosity or urgency in your message.</p>
+  ${BANNER_468}
     <p class="blog-text"><span class="highlight">Use Multiple Niches</span> — Don't limit yourself to one topic. Share cricket updates in sports groups, job alerts in career groups, and movie news in entertainment groups.</p>
+  ${NATIVE}
     <p class="blog-text"><span class="highlight">Track Your Analytics</span> — Use SnapURL's built-in dashboard to see which links perform best and which time slots generate the most clicks.</p>
+  ${BANNER_300}
   </div>
 
   ${BANNER_468}
@@ -647,6 +704,7 @@ ${AD_SCRIPTS}
   <div class="card">
     <h1>⚡ You're 60% Done!</h1>
     <p class="blog-text">Great job! You have completed the first two steps. Just 2 more steps to go and your destination link will be ready. Please scroll down and wait for the timer to complete.</p>
+  ${BANNER_468}
   </div>
 
   <div class="timer-box">
@@ -696,11 +754,17 @@ ${AD_SCRIPTS}
   <div class="card">
     <h2>🚀 SnapURL vs Other URL Shorteners</h2>
     <p class="blog-text">Not all link shorteners are created equal. Here's why SnapURL stands out from the competition:</p>
+  ${NATIVE}
     <p class="blog-text">✅ <span class="highlight">Higher Rates</span> — SnapURL pays some of the highest CPM rates in the industry for Indian traffic. We pass 70% of our ad revenue directly to our publishers.</p>
+  ${BANNER_300}
     <p class="blog-text">✅ <span class="highlight">Instant Dashboard</span> — Real-time analytics so you can track every click as it happens. Know which links are performing and optimize your strategy.</p>
+  ${BANNER_468}
     <p class="blog-text">✅ <span class="highlight">Fast Withdrawal</span> — Unlike other platforms that hold your money for 30–60 days, SnapURL processes withdrawals within 24–48 hours on business days.</p>
+  ${NATIVE}
     <p class="blog-text">✅ <span class="highlight">No Minimum Links</span> — You can start earning from your very first link. No minimum link requirement before you can withdraw.</p>
+  ${BANNER_300}
     <p class="blog-text">✅ <span class="highlight">24/7 Support</span> — Our support team is available around the clock via email and Telegram to help resolve any issues quickly.</p>
+  ${BANNER_468}
   </div>
 
   ${NATIVE}
@@ -709,9 +773,13 @@ ${AD_SCRIPTS}
   <div class="card">
     <h2>📚 Internet Trends in India 2024</h2>
     <p class="blog-text">India is now the world's second-largest internet market with over <span class="highlight">850 million active internet users</span>. Mobile internet usage has grown by 35% in the past 2 years alone.</p>
+  ${NATIVE}
     <p class="blog-text">WhatsApp remains the dominant messaging platform with over <span class="highlight">530 million Indian users</span>. This makes it the most powerful channel for viral link sharing — and earning money through SnapURL.</p>
+  ${BANNER_300}
     <p class="blog-text">Short-form content and quick links are increasingly popular as attention spans shrink. <span class="highlight">Short URLs get 39% more clicks</span> than full-length URLs in messaging apps, according to marketing research.</p>
+  ${BANNER_468}
     <p class="blog-text">Video content links, especially cricket and Bollywood, consistently drive the highest traffic on our platform. During major cricket tournaments, our daily traffic increases by <span class="highlight">400–600%</span>.</p>
+  ${NATIVE}
   </div>
 
   ${BANNER_468}
@@ -719,10 +787,15 @@ ${AD_SCRIPTS}
   <div class="card">
     <h2>💡 Did You Know?</h2>
     <p class="blog-text">🔗 The first URL shortener was created in 2002. TinyURL was one of the pioneers that started the link shortening industry.</p>
+  ${BANNER_300}
     <p class="blog-text">📊 Over <span class="highlight">25 billion shortened links</span> are clicked every year worldwide. The industry is growing at 20% annually.</p>
+  ${BANNER_468}
     <p class="blog-text">💰 Top link shortener publishers worldwide earn <span class="highlight">$500–$5,000 per month</span> just from sharing links on social media.</p>
+  ${NATIVE}
     <p class="blog-text">📱 <span class="highlight">78% of all clicks</span> on SnapURL come from mobile devices — mostly Android smartphones. This shows the massive opportunity in mobile-first India.</p>
+  ${BANNER_300}
     <p class="blog-text">⚡ SnapURL processes each redirect in under <span class="highlight">50 milliseconds</span> — faster than you can blink!</p>
+  ${BANNER_468}
   </div>
 
   ${BANNER_300}
@@ -794,6 +867,7 @@ ${AD_SCRIPTS}
   <div class="card">
     <h1>🔗 Almost Ready — Step 4 of 5</h1>
     <p class="blog-text">You're doing great! We are now generating your secure destination link. Please wait for the timer and scroll through while we complete the final checks.</p>
+  ${NATIVE}
   </div>
 
   ${NATIVE}
@@ -816,11 +890,17 @@ ${AD_SCRIPTS}
   <div class="card">
     <h2>🔒 Your Privacy & Our Promise</h2>
     <p class="blog-text">At SnapURL, we take your privacy seriously. Here is what we <span class="highlight">never</span> do:</p>
+  ${BANNER_300}
     <p class="blog-text">🚫 We never sell your personal data to third parties</p>
+  ${BANNER_468}
     <p class="blog-text">🚫 We never store your browsing history or track you across websites</p>
+  ${NATIVE}
     <p class="blog-text">🚫 We never ask for login credentials for other platforms</p>
+  ${BANNER_300}
     <p class="blog-text">🚫 We never inject malware or unwanted software</p>
+  ${BANNER_468}
     <p class="blog-text">🚫 We never redirect you to harmful or adult content sites</p>
+  ${NATIVE}
     <p class="blog-text" style="margin-top:8px">We comply with GDPR, India's DPDP Act 2023, and all applicable data protection laws. Our privacy policy is available at snapurl.in/privacy</p>
   </div>
 
@@ -830,11 +910,17 @@ ${AD_SCRIPTS}
   <div class="card">
     <h2>🌍 SnapURL Global Network</h2>
     <p class="blog-text">SnapURL operates a global CDN (Content Delivery Network) with server locations in:</p>
+  ${BANNER_300}
     <p class="blog-text">🇮🇳 <span class="highlight">Mumbai</span> — Primary server for Indian traffic (sub-20ms latency)</p>
+  ${BANNER_468}
     <p class="blog-text">🇮🇳 <span class="highlight">Delhi</span> — Secondary server for North India</p>
+  ${NATIVE}
     <p class="blog-text">🇸🇬 <span class="highlight">Singapore</span> — Southeast Asia and Pacific region</p>
+  ${BANNER_300}
     <p class="blog-text">🇩🇪 <span class="highlight">Frankfurt</span> — European traffic</p>
+  ${BANNER_468}
     <p class="blog-text">🇺🇸 <span class="highlight">Virginia</span> — North American traffic</p>
+  ${NATIVE}
     <p class="blog-text" style="margin-top:8px">This global network ensures that no matter where your link visitors are located, they experience <span class="highlight">ultra-fast redirects</span> with minimal delay.</p>
   </div>
 
@@ -844,11 +930,17 @@ ${AD_SCRIPTS}
   <div class="card">
     <h2>📖 How to Maximize Your Earnings — Advanced Tips</h2>
     <p class="blog-text"><span class="highlight">Tip 1: Timing is Everything</span> — Post links during peak engagement hours. For India, the best times are 8-10 AM (morning commute), 1-2 PM (lunch break), and 8-11 PM (evening relaxation).</p>
+  ${BANNER_300}
     <p class="blog-text"><span class="highlight">Tip 2: Create Curiosity</span> — Use messages like "You won't believe this..." or "This is going viral right now..." to increase click rates dramatically.</p>
+  ${BANNER_468}
     <p class="blog-text"><span class="highlight">Tip 3: Ride Trends</span> — Share links about trending topics. Check Twitter/X India Trends and Google Trends daily to find what people are searching for.</p>
+  ${NATIVE}
     <p class="blog-text"><span class="highlight">Tip 4: Cross-Platform Sharing</span> — Don't limit to one platform. Share the same link across WhatsApp, Telegram, Facebook, and Instagram for maximum reach.</p>
+  ${BANNER_300}
     <p class="blog-text"><span class="highlight">Tip 5: Build an Audience</span> — Create a Telegram channel or WhatsApp community focused on a specific niche. A loyal audience means consistent, recurring clicks every time you post.</p>
+  ${BANNER_468}
     <p class="blog-text"><span class="highlight">Tip 6: Collaborate</span> — Partner with other SnapURL users to cross-promote each other's links and grow your combined audience faster.</p>
+  ${NATIVE}
   </div>
 
   ${NATIVE}
@@ -954,7 +1046,9 @@ ${AD_SCRIPTS}
   <div class="card">
     <h2>🙏 Thank You for Using SnapURL!</h2>
     <p class="blog-text">You have successfully completed all verification steps. We appreciate your patience! The advertisements you viewed help us keep this service completely free for everyone.</p>
+  ${BANNER_300}
     <p class="blog-text">If someone shared this link with you, they just earned a small commission from your visit. Isn't that cool? <span class="highlight">You can do the same!</span> Sign up for free and start earning money by sharing links with your friends and family.</p>
+  ${BANNER_468}
   </div>
 
   ${BANNER_468}
@@ -963,12 +1057,19 @@ ${AD_SCRIPTS}
   <div class="card">
     <h2>💰 Start Earning Today — It's Free!</h2>
     <p class="blog-text">Creating a SnapURL account takes less than 60 seconds. Here's what you get for free:</p>
+  ${NATIVE}
     <p class="blog-text">🔗 Unlimited link shortening</p>
+  ${BANNER_300}
     <p class="blog-text">📊 Real-time click analytics dashboard</p>
+  ${BANNER_468}
     <p class="blog-text">💵 Earnings for every click on your links</p>
+  ${NATIVE}
     <p class="blog-text">🎯 Custom link aliases (e.g. snapurl.in/yourname)</p>
+  ${BANNER_300}
     <p class="blog-text">📱 Works on mobile, tablet, and desktop</p>
+  ${BANNER_468}
     <p class="blog-text">💳 Fast withdrawals via UPI, PayPal, Bank Transfer</p>
+  ${NATIVE}
     <p class="blog-text" style="margin-top:10px">Join over <span class="highlight">1.2 lakh users</span> already earning with SnapURL. No investment required, no hidden fees, no minimum traffic requirement!</p>
     <a href="/register.html" style="display:block;background:linear-gradient(135deg,#00e5ff,#00ff94);color:#000;border:none;padding:14px 28px;border-radius:10px;font-size:15px;font-weight:800;text-align:center;margin:12px 0;text-decoration:none;letter-spacing:0.5px">🚀 Create Free Account →</a>
   </div>
@@ -978,10 +1079,15 @@ ${AD_SCRIPTS}
   <div class="card">
     <h2>📊 SnapURL vs Competitors</h2>
     <p class="blog-text">Here's how SnapURL stacks up against other popular link shorteners:</p>
+  ${BANNER_300}
     <p class="blog-text">🏆 <span class="highlight">SnapURL</span> — $4.50/1000 clicks (India), fast payouts, Hindi support, UPI withdrawal</p>
+  ${BANNER_468}
     <p class="blog-text">🥈 Shorte.st — $3.00/1000 clicks, PayPal only, English support</p>
+  ${NATIVE}
     <p class="blog-text">🥉 Linkvertise — $2.50/1000 clicks, PayPal only, no Indian UPI</p>
+  ${BANNER_300}
     <p class="blog-text">4️⃣ Adf.ly — $1.50/1000 clicks, slow payouts, outdated interface</p>
+  ${BANNER_468}
     <p class="blog-text" style="margin-top:8px">SnapURL is the clear choice for Indian creators and social media users who want <span class="highlight">maximum earnings</span> with the most convenient withdrawal options.</p>
   </div>
 
@@ -991,7 +1097,9 @@ ${AD_SCRIPTS}
   <div class="card">
     <h2>📱 Share SnapURL With Friends</h2>
     <p class="blog-text">Know someone who could benefit from earning with SnapURL? Share this platform with them!</p>
+  ${NATIVE}
     <p class="blog-text">When you refer a friend, you earn <span class="highlight">10% of their earnings</span> for the first 3 months — completely passive income on top of your own link earnings!</p>
+  ${BANNER_300}
     <div class="share-grid">
       <button class="share-btn share-wa" onclick="window.open('https://wa.me/?text=SnapURL se paisa kamao! https://snapurl.in/register')">💬 WhatsApp</button>
       <button class="share-btn share-tg" onclick="window.open('https://t.me/share/url?url=https://snapurl.in&text=Earn money by sharing links!')">✈️ Telegram</button>
