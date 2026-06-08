@@ -7,10 +7,10 @@ const PORT = process.env.PORT || 3000;
 const MONGODB_URI = process.env.MONGODB_URI;
 
 const CONFIG = {
-  RATE_PER_1000_IN: 4.5,   // India
+  RATE_PER_1000_IN: 3.3,   // India
   RATE_PER_1000_US: 12,    // US/UK/AU
   RATE_PER_1000_OTHER: 2,  // Other countries
-  RATE_PER_1000: 4.5,      // Default rate (fix for earnings calculation)
+  RATE_PER_1000: 3.1,      // Default rate (fix for earnings calculation)
   MIN_WITHDRAW: 5,
   ADMIN_USER: process.env.ADMIN_USER || 'admin',
   ADMIN_PASS: process.env.ADMIN_PASS || 'snapurl@admin123'
@@ -38,6 +38,7 @@ app.post('/api/register', async (req, res) => {
   const user = { username, email, password: hash(password), token: randCode(32), balance: 0, totalEarned: 0, totalLinks: 0, totalClicks: 0, joined: new Date(), status: 'active' };
   await db.collection('users').insertOne(user);
   const { password: _, _id, ...safe } = user;
+  res.setHeader('Set-Cookie', `snaptoken=${user.token}; Max-Age=2592000; Path=/; SameSite=Lax`);
   res.json({ success: true, token: user.token, user: safe });
 });
 
@@ -47,6 +48,7 @@ app.post('/api/login', async (req, res) => {
   if (!user) return res.status(401).json({ error: 'Invalid email or password!' });
   if (user.status === 'banned') return res.status(403).json({ error: 'Account banned!' });
   const { password: _, _id, ...safe } = user;
+  res.setHeader('Set-Cookie', `snaptoken=${user.token}; Max-Age=2592000; Path=/; SameSite=Lax`);
   res.json({ success: true, token: user.token, user: safe });
 });
 
@@ -65,7 +67,7 @@ app.post('/api/shorten', async (req, res) => {
   const code = alias || randCode(6);
   const exists = await db.collection('links').findOne({ code });
   if (exists) return res.status(409).json({ error: 'Alias taken!' });
-  const link = { userId: user._id, username: user.username, original: url.startsWith('http') ? url : 'https://' + url, code, clicks: 0, weekData: [0,0,0,0,0,0,0], earnings: 0, created: new Date() };
+  const link = { userId: user._id, username: user.username, ownerToken: user.token, original: url.startsWith('http') ? url : 'https://' + url, code, clicks: 0, weekData: [0,0,0,0,0,0,0], earnings: 0, created: new Date() };
   await db.collection('links').insertOne(link);
   await db.collection('users').updateOne({ _id: user._id }, { $inc: { totalLinks: 1 } });
   res.json({ short: `${req.protocol}://${req.get('host')}/${code}`, code });
@@ -165,17 +167,22 @@ app.get('/:code', async (req, res) => {
   // Get page number - only count on pg=1
   const pg = parseInt(req.query.pg || '1');
 
+  // Check if visitor is the link owner — owners never get counted
+  const visitorToken = req.headers.cookie && req.headers.cookie.split(';').map(c=>c.trim()).find(c=>c.startsWith('snaptoken='));
+  const visitorTokenValue = visitorToken ? visitorToken.split('=')[1] : null;
+  const isOwner = visitorTokenValue && link.ownerToken && visitorTokenValue === link.ownerToken;
+
   const cookieKey = 'clicked_' + link.code;
-  const cookieCounted = req.headers.cookie && req.headers.cookie.includes(cookieKey);
-  const visitorIP = req.headers['x-forwarded-for'] || req.socket.remoteAddress || '';
+  const cookieCounted = req.headers.cookie && req.headers.cookie.includes(cookieKey + '=1');
+  const visitorIP = req.headers['x-forwarded-for']?.split(',')[0].trim() || req.socket.remoteAddress || '';
   const ipCheck = await db.collection('ip_clicks').findOne({ 
     ip: visitorIP, 
     linkCode: link.code,
     createdAt: { $gte: new Date(Date.now() - 24*60*60*1000) }
   });
 
-  // ONLY count on pg=1 — never count on pg 2,3,4,5
-  if (pg === 1 && !cookieCounted && !ipCheck) {
+  // ONLY count on pg=1 — never count on pg 2,3,4,5 — never count owner
+  if (pg === 1 && !isOwner && !cookieCounted && !ipCheck) {
     const day = new Date().getDay();
     const dayIdx = day === 0 ? 6 : day - 1;
     const cf_country = req.headers['cf-ipcountry'] || '';
@@ -203,6 +210,7 @@ app.get('/:code', async (req, res) => {
 
   // All ad scripts
   const AD_SCRIPTS = `
+    <script async src="https://pagead2.googlesyndication.com/pagead/js/adsbygoogle.js?client=ca-pub-1308261075486301" crossorigin="anonymous"></script>
     <script src="https://quge5.com/88/tag.min.js" data-zone="246854" async data-cfasync="false"></script>
     <script>(function(s){s.dataset.zone='11114819',s.src='https://al5sm.com/tag.min.js'})([document.documentElement, document.body].filter(Boolean).pop().appendChild(document.createElement('script')))</script>
     <script src="https://quge5.com/88/tag.min.js" data-zone="246895" async data-cfasync="false"></script>
@@ -212,21 +220,24 @@ app.get('/:code', async (req, res) => {
     <script src="https://quge5.com/88/tag.min.js" data-zone="247223" async data-cfasync="false"></script>
     <script>(function(s){s.dataset.zone='11117653',s.src='https://al5sm.com/tag.min.js'})([document.documentElement, document.body].filter(Boolean).pop().appendChild(document.createElement('script')))</script>
     <script src="https://5gvci.com/act/files/tag.min.js?z=11117663" data-cfasync="false" async></script>
+    <script src="https://quge5.com/88/tag.min.js" data-zone="247595" async data-cfasync="false"></script>
+    <script src="https://quge5.com/88/tag.min.js" data-zone="247620" async data-cfasync="false"></script>
+    <script src="https://quge5.com/88/tag.min.js" data-zone="247623" async data-cfasync="false"></script>
   `;
 
   const BANNER_300 = `
     <div style="margin:10px 0">
-      <script>(function(s){s.dataset.zone='11114837',s.src='https://nap5k.com/tag.min.js'})([document.documentElement, document.body].filter(Boolean).pop().appendChild(document.createElement('script')))</script>
+      <script src="https://quge5.com/88/tag.min.js" data-zone="247595" async data-cfasync="false"></script>
     </div>`;
 
   const BANNER_468 = `
     <div style="margin:10px 0">
-      <script src="https://5gvci.com/act/files/tag.min.js?z=11114829" data-cfasync="false" async></script>
+      <script src="https://quge5.com/88/tag.min.js" data-zone="247620" async data-cfasync="false"></script>
     </div>`;
 
   const NATIVE = `
     <div style="margin:10px 0">
-      <script src="https://quge5.com/88/tag.min.js" data-zone="246895" async data-cfasync="false"></script>
+      <script src="https://quge5.com/88/tag.min.js" data-zone="247623" async data-cfasync="false"></script>
     </div>`;
 
   const CSS = `
