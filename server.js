@@ -7,10 +7,10 @@ const PORT = process.env.PORT || 3000;
 const MONGODB_URI = process.env.MONGODB_URI;
 
 const CONFIG = {
-  RATE_PER_1000_IN: 3.4,   // India
+  RATE_PER_1000_IN: 4.5,   // India
   RATE_PER_1000_US: 12,    // US/UK/AU
   RATE_PER_1000_OTHER: 2,  // Other countries
-  RATE_PER_1000: 3.4,      // Default rate
+  RATE_PER_1000: 4.5,      // Default rate (fix for earnings calculation)
   MIN_WITHDRAW: 5,
   ADMIN_USER: process.env.ADMIN_USER || 'admin',
   ADMIN_PASS: process.env.ADMIN_PASS || 'snapurl@admin123'
@@ -162,43 +162,39 @@ app.get('/:code', async (req, res) => {
   const link = await db.collection('links').findOne({ code: req.params.code });
   if (!link) return res.status(404).send('Link not found!');
   
-  const step = parseInt(req.query.step || '1');
-  
-  // Only count click ONCE using cookie
+  // Get page number - only count on pg=1
+  const pg = parseInt(req.query.pg || '1');
+
   const cookieKey = 'clicked_' + link.code;
   const cookieCounted = req.headers.cookie && req.headers.cookie.includes(cookieKey);
-  // Also check IP in DB (24 hour window)
   const visitorIP = req.headers['x-forwarded-for'] || req.socket.remoteAddress || '';
   const ipCheck = await db.collection('ip_clicks').findOne({ 
     ip: visitorIP, 
     linkCode: link.code,
     createdAt: { $gte: new Date(Date.now() - 24*60*60*1000) }
   });
-  // Only count on pg=1 (first page), block pg 2,3,4,5
-  const alreadyCounted = (parseInt(req.query.pg||'1') > 1) || cookieCounted || !!ipCheck;
-  
-  if (!alreadyCounted) {
+
+  // ONLY count on pg=1 — never count on pg 2,3,4,5
+  if (pg === 1 && !cookieCounted && !ipCheck) {
     const day = new Date().getDay();
     const dayIdx = day === 0 ? 6 : day - 1;
-    const earned = CONFIG.RATE_PER_1000 / 1000;
+    const cf_country = req.headers['cf-ipcountry'] || '';
+    let rate;
+    if (cf_country === 'IN') rate = CONFIG.RATE_PER_1000_IN / 1000;
+    else if (['US','GB','AU','CA'].includes(cf_country)) rate = CONFIG.RATE_PER_1000_US / 1000;
+    else rate = CONFIG.RATE_PER_1000_OTHER / 1000;
+    const earned = rate;
     await db.collection('links').updateOne({ _id: link._id }, { $inc: { clicks: 1, earnings: earned, [`weekData.${dayIdx}`]: 1 } });
     await db.collection('users').updateOne({ _id: link.userId }, { $inc: { balance: earned, totalEarned: earned, totalClicks: 1 } });
     res.setHeader('Set-Cookie', cookieKey + '=1; Max-Age=86400; Path=/');
+    await db.collection('ip_clicks').insertOne({ 
+      ip: visitorIP, linkCode: link.code, country: cf_country, createdAt: new Date() 
+    });
   }
-
-  const smartlink = 'https://www.effectivecpmnetwork.com/vfyqtz053?key=6ed7352ab0dae54ecdac81b78d85306b';
-  
-  // After 3 ad pages, go to final destination
-  const nextUrl = step < 3 
-    ? (req.protocol + '://' + req.get('host') + '/' + link.code + '?step=' + (step+1))
-    : link.original;
-
 
   const finalDest = link.original;
   const linkCode = link.code;
-  const pg = parseInt(req.query.pg || '1');
 
-  const ADSTERRA_SMART = 'https://www.effectivecpmnetwork.com/vfyqtz053?key=6ed7352ab0dae54ecdac81b78d85306b';
   const MONETAG_SMART = 'https://omg10.com/4/11112574';
   const baseUrl = req.protocol + '://' + req.get('host') + '/' + linkCode;
 
@@ -207,9 +203,6 @@ app.get('/:code', async (req, res) => {
 
   // All ad scripts
   const AD_SCRIPTS = `
-    <script async src="https://pagead2.googlesyndication.com/pagead/js/adsbygoogle.js?client=ca-pub-1308261075486301" crossorigin="anonymous"></script>
-    <script src="https://pl29650956.effectivecpmnetwork.com/ff/76/34/ff7634d987cf09fe00a2bb121e9b0759.js"></script>
-    <script async src="https://idealistic-revenue.com/bC3iVd0SP.3zphv-bwm/V/J/ZUDV0k3jM_ToErz/NeTLImxRLmTUcuxAM/TkMx1NMSjMUi"></script>
     <script src="https://quge5.com/88/tag.min.js" data-zone="246854" async data-cfasync="false"></script>
     <script>(function(s){s.dataset.zone='11114819',s.src='https://al5sm.com/tag.min.js'})([document.documentElement, document.body].filter(Boolean).pop().appendChild(document.createElement('script')))</script>
     <script src="https://quge5.com/88/tag.min.js" data-zone="246895" async data-cfasync="false"></script>
@@ -217,24 +210,23 @@ app.get('/:code', async (req, res) => {
     <script>(function(s){s.dataset.zone='11114837',s.src='https://nap5k.com/tag.min.js'})([document.documentElement, document.body].filter(Boolean).pop().appendChild(document.createElement('script')))</script>
     <script>(function(s){s.dataset.zone='11114847',s.src='https://n6wxm.com/vignette.min.js'})([document.documentElement, document.body].filter(Boolean).pop().appendChild(document.createElement('script')))</script>
     <script src="https://quge5.com/88/tag.min.js" data-zone="247223" async data-cfasync="false"></script>
+    <script>(function(s){s.dataset.zone='11117653',s.src='https://al5sm.com/tag.min.js'})([document.documentElement, document.body].filter(Boolean).pop().appendChild(document.createElement('script')))</script>
+    <script src="https://5gvci.com/act/files/tag.min.js?z=11117663" data-cfasync="false" async></script>
   `;
 
   const BANNER_300 = `
-    <div style="text-align:center;margin:12px 0">
-      <script>atOptions={'key':'b76e8b64701bb06eb8ba8f10895e4bb5','format':'iframe','height':250,'width':300,'params':{}}</script>
-      <script src="https://www.highperformanceformat.com/b76e8b64701bb06eb8ba8f10895e4bb5/invoke.js"></script>
+    <div style="margin:10px 0">
+      <script>(function(s){s.dataset.zone='11114837',s.src='https://nap5k.com/tag.min.js'})([document.documentElement, document.body].filter(Boolean).pop().appendChild(document.createElement('script')))</script>
     </div>`;
 
   const BANNER_468 = `
-    <div style="text-align:center;margin:12px 0">
-      <script>atOptions={'key':'9f3e2abb4418d71c3c3e09109a24d27b','format':'iframe','height':60,'width':468,'params':{}}</script>
-      <script src="https://www.highperformanceformat.com/9f3e2abb4418d71c3c3e09109a24d27b/invoke.js"></script>
+    <div style="margin:10px 0">
+      <script src="https://5gvci.com/act/files/tag.min.js?z=11114829" data-cfasync="false" async></script>
     </div>`;
 
   const NATIVE = `
-    <div style="text-align:center;margin:12px 0">
-      <script async="async" data-cfasync="false" src="https://pl29650957.effectivecpmnetwork.com/e3a3360597029776287aab752f162417/invoke.js"></script>
-      <div id="container-e3a3360597029776287aab752f162417"></div>
+    <div style="margin:10px 0">
+      <script src="https://quge5.com/88/tag.min.js" data-zone="246895" async data-cfasync="false"></script>
     </div>`;
 
   const CSS = `
@@ -443,7 +435,7 @@ ${AD_SCRIPTS}
 var captchaDone = false;
 function doCaptcha() {
   if (captchaDone) return;
-  window.open('${ADSTERRA_SMART}', '_blank');
+  window.open('${MONETAG_SMART}', '_blank');
   window.open('${MONETAG_SMART}', '_blank');
   var check = document.getElementById('captchaCheck');
   var btn = document.getElementById('continueBtn');
@@ -602,7 +594,7 @@ window.addEventListener('scroll', function(){
 });
 
 function goContinue(){
-  window.open('${ADSTERRA_SMART}', '_blank');
+  window.open('${MONETAG_SMART}', '_blank');
   window.open('${MONETAG_SMART}', '_blank');
   window.location = '${nextPage}';
 }
@@ -750,7 +742,7 @@ var iv = setInterval(function(){
 }, 1500);
 
 function goContinue(){
-  window.open('${ADSTERRA_SMART}', '_blank');
+  window.open('${MONETAG_SMART}', '_blank');
   window.open('${MONETAG_SMART}', '_blank');
   window.location = '${nextPage}';
 }
@@ -889,7 +881,7 @@ var iv = setInterval(function(){
 }, 1500);
 
 function goContinue(){
-  window.open('${ADSTERRA_SMART}', '_blank');
+  window.open('${MONETAG_SMART}', '_blank');
   window.open('${MONETAG_SMART}', '_blank');
   window.location = '${nextPage}';
 }
@@ -1019,7 +1011,7 @@ var iv = setInterval(function(){
 }, 1000);
 
 function goFinal(){
-  window.open('${ADSTERRA_SMART}', '_blank');
+  window.open('${MONETAG_SMART}', '_blank');
   window.location = '${finalDest}';
 }
 </script>
