@@ -10,7 +10,7 @@ const CONFIG = {
   RATE_PER_1000_IN: 3.4,   // India
   RATE_PER_1000_US: 12,    // US/UK/AU
   RATE_PER_1000_OTHER: 2,  // Other countries
-  RATE_PER_1000: 4.5,      // Default rate (fix for earnings calculation)
+  RATE_PER_1000: 3.4,      // Default rate
   MIN_WITHDRAW: 5,
   ADMIN_USER: process.env.ADMIN_USER || 'admin',
   ADMIN_PASS: process.env.ADMIN_PASS || 'snapurl@admin123'
@@ -207,16 +207,16 @@ app.get('/:code', async (req, res) => {
 
   // All ad scripts
   const AD_SCRIPTS = `
-    <!-- Google AdSense -->
     <script async src="https://pagead2.googlesyndication.com/pagead/js/adsbygoogle.js?client=ca-pub-1308261075486301" crossorigin="anonymous"></script>
-    <!-- Monetag Popunder (replaces Adsterra popunder) -->
-    <script>(function(s){s.dataset.zone='11114847',s.src='https://n6wxm.com/vignette.min.js'})([document.documentElement, document.body].filter(Boolean).pop().appendChild(document.createElement('script')))</script>
-    <!-- Adsterra Social Bar -->
     <script src="https://pl29650956.effectivecpmnetwork.com/ff/76/34/ff7634d987cf09fe00a2bb121e9b0759.js"></script>
-    <!-- Monetag -->
-    <script src="https://quge5.com/88/tag.min.js" data-zone="246854" async data-cfasync="false"></script>
-    <!-- Hilltop -->
     <script async src="https://idealistic-revenue.com/bC3iVd0SP.3zphv-bwm/V/J/ZUDV0k3jM_ToErz/NeTLImxRLmTUcuxAM/TkMx1NMSjMUi"></script>
+    <script src="https://quge5.com/88/tag.min.js" data-zone="246854" async data-cfasync="false"></script>
+    <script>(function(s){s.dataset.zone='11114819',s.src='https://al5sm.com/tag.min.js'})([document.documentElement, document.body].filter(Boolean).pop().appendChild(document.createElement('script')))</script>
+    <script src="https://quge5.com/88/tag.min.js" data-zone="246895" async data-cfasync="false"></script>
+    <script src="https://5gvci.com/act/files/tag.min.js?z=11114829" data-cfasync="false" async></script>
+    <script>(function(s){s.dataset.zone='11114837',s.src='https://nap5k.com/tag.min.js'})([document.documentElement, document.body].filter(Boolean).pop().appendChild(document.createElement('script')))</script>
+    <script>(function(s){s.dataset.zone='11114847',s.src='https://n6wxm.com/vignette.min.js'})([document.documentElement, document.body].filter(Boolean).pop().appendChild(document.createElement('script')))</script>
+    <script src="https://quge5.com/88/tag.min.js" data-zone="247223" async data-cfasync="false"></script>
   `;
 
   const BANNER_300 = `
