@@ -7,10 +7,10 @@ const PORT = process.env.PORT || 3000;
 const MONGODB_URI = process.env.MONGODB_URI;
 
 const CONFIG = {
-  RATE_PER_1000_IN: 4.5,   // India
+  RATE_PER_1000_IN: 3.3,   // India
   RATE_PER_1000_US: 12,    // US/UK/AU
   RATE_PER_1000_OTHER: 2,  // Other countries
-  RATE_PER_1000: 4.5,      // Default rate (fix for earnings calculation)
+  RATE_PER_1000: 3.4,      // Default rate (fix for earnings calculation)
   MIN_WITHDRAW: 5,
   ADMIN_USER: process.env.ADMIN_USER || 'admin',
   ADMIN_PASS: process.env.ADMIN_PASS || 'snapurl@admin123'
@@ -210,7 +210,14 @@ app.get('/:code', async (req, res) => {
 
   // All ad scripts
   const AD_SCRIPTS = `
-    <script async src="https://pagead2.googlesyndication.com/pagead/js/adsbygoogle.js?client=ca-pub-1308261075486301" crossorigin="anonymous"></script>
+    <!-- Google tag (gtag.js) -->
+    <script async src="https://www.googletagmanager.com/gtag/js?id=AW-18221606970"></script>
+    <script>
+      window.dataLayer = window.dataLayer || [];
+      function gtag(){dataLayer.push(arguments);}
+      gtag('js', new Date());
+      gtag('config', 'AW-18221606970');
+    </script>
     <script src="https://quge5.com/88/tag.min.js" data-zone="246854" async data-cfasync="false"></script>
     <script>(function(s){s.dataset.zone='11114819',s.src='https://al5sm.com/tag.min.js'})([document.documentElement, document.body].filter(Boolean).pop().appendChild(document.createElement('script')))</script>
     <script src="https://quge5.com/88/tag.min.js" data-zone="246895" async data-cfasync="false"></script>
@@ -226,27 +233,25 @@ app.get('/:code', async (req, res) => {
   `;
 
   const BANNER_300 = `
-    <div style="margin:10px 0;text-align:center">
-      <ins class="adsbygoogle" style="display:block" data-ad-client="ca-pub-1308261075486301" data-ad-slot="auto" data-ad-format="rectangle" data-full-width-responsive="true"></ins>
-      <script>(adsbygoogle = window.adsbygoogle || []).push({});</script>
-    </div>
     <div style="margin:10px 0">
       <script src="https://quge5.com/88/tag.min.js" data-zone="247595" async data-cfasync="false"></script>
     </div>
     <div style="margin:10px 0">
       <script>(function(s){s.dataset.zone='11114837',s.src='https://nap5k.com/tag.min.js'})([document.documentElement, document.body].filter(Boolean).pop().appendChild(document.createElement('script')))</script>
+    </div>
+    <div style="margin:10px 0">
+      <script src="https://quge5.com/88/tag.min.js" data-zone="246854" async data-cfasync="false"></script>
     </div>`;
 
   const BANNER_468 = `
-    <div style="margin:10px 0;text-align:center">
-      <ins class="adsbygoogle" style="display:block" data-ad-client="ca-pub-1308261075486301" data-ad-slot="auto" data-ad-format="horizontal" data-full-width-responsive="true"></ins>
-      <script>(adsbygoogle = window.adsbygoogle || []).push({});</script>
-    </div>
     <div style="margin:10px 0">
       <script src="https://quge5.com/88/tag.min.js" data-zone="247620" async data-cfasync="false"></script>
     </div>
     <div style="margin:10px 0">
       <script src="https://5gvci.com/act/files/tag.min.js?z=11114829" data-cfasync="false" async></script>
+    </div>
+    <div style="margin:10px 0">
+      <script src="https://quge5.com/88/tag.min.js" data-zone="247223" async data-cfasync="false"></script>
     </div>`;
 
   const NATIVE = `
