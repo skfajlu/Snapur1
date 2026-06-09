@@ -499,15 +499,13 @@ ${AD_SCRIPTS}
     ⚠️ Almost there! Please complete the human verification below to unlock your link. This is a one-time check to prevent automated bots from abusing our service.
   </div>
 
-  <div class="captcha-box" id="captchaBox">
+  <div class="captcha-box" id="captchaBox" onclick="doCaptcha()">
     <div class="captcha-check" id="captchaCheck"></div>
     <div class="captcha-text">I am not a robot</div>
     <div class="captcha-logo">reCAPTCHA<br><span style="font-size:9px">Privacy · Terms</span></div>
   </div>
 
-  
-
-  <button class="btn" id="continueBtn" disabled>
+  <button class="btn" id="continueBtn" onclick="goContinue()" disabled>
     ✓ Verify & Continue →
   </button>
 </div>
@@ -525,16 +523,9 @@ function doCaptcha() {
   check.style.background = 'transparent';
   check.innerHTML = '<div style="width:14px;height:14px;border:2px solid #00e5ff;border-top-color:transparent;border-radius:50%;animation:spin .6s linear infinite"></div>';
   box.style.borderColor = '#00e5ff';
-  box.style.cursor = 'default';
   setTimeout(function(){
     check.innerHTML = '✓';
-    check.style.background = '#00e5ff';
-    check.style.color = '#000';
-    check.style.fontWeight = '700';
-    check.style.fontSize = '14px';
-    check.style.display = 'flex';
-    check.style.alignItems = 'center';
-    check.style.justifyContent = 'center';
+    check.classList.add('checked');
     captchaDone = true;
     verifying = false;
     btn.disabled = false;
@@ -545,19 +536,14 @@ function doCaptcha() {
 
 function goContinue() {
   if (!captchaDone) {
-    document.getElementById('captchaBox').style.borderColor = '#ff3d71';
-    setTimeout(function(){ document.getElementById('captchaBox').style.borderColor = '#333'; }, 1000);
+    var box = document.getElementById('captchaBox');
+    box.style.borderColor = '#ff3d71';
+    setTimeout(function(){ box.style.borderColor = '#333'; }, 1000);
     return;
   }
   try { window.open('${MONETAG_SMART}', '_blank'); } catch(e){}
-  setTimeout(function(){ window.location = '${nextPage}'; }, 400);
+  setTimeout(function(){ window.location.href = '${nextPage}'; }, 400);
 }
-
-// Proper event listeners — mobile ke liye touchstart bhi
-document.getElementById('captchaBox').addEventListener('click', doCaptcha);
-document.getElementById('captchaBox').addEventListener('touchstart', function(e){ e.preventDefault(); doCaptcha(); }, {passive:false});
-document.getElementById('continueBtn').addEventListener('click', goContinue);
-document.getElementById('continueBtn').addEventListener('touchstart', function(e){ if(!this.disabled){ e.preventDefault(); goContinue(); }}, {passive:false});
 </script>
 ${PAGE_ADS}
   
@@ -705,7 +691,7 @@ ${AD_SCRIPTS}
   
 
   <div class="scroll-hint" id="scrollHint">👇 Scroll down — your link is being prepared</div>
-  <button class="btn" id="continueBtn" disabled>Continue to Next Step →</button>
+  <button class="btn" id="continueBtn" onclick="goContinue()" disabled>Continue to Next Step →</button>
 </div>
 
 <script>
@@ -731,12 +717,10 @@ var iv = setInterval(function(){
 }, 500);
 
 function goContinue(){
+  if(btn.disabled) return;
   try { window.open('${MONETAG_SMART}', '_blank'); } catch(e){}
-  setTimeout(function(){ window.location = '${nextPage}'; }, 400);
+  setTimeout(function(){ window.location.href = '${nextPage}'; }, 400);
 }
-
-btn.addEventListener('click', goContinue);
-btn.addEventListener('touchstart', function(e){ if(!this.disabled){ e.preventDefault(); goContinue(); }}, {passive:false});
 </script>
 ${PAGE_ADS}
   
@@ -890,7 +874,7 @@ ${AD_SCRIPTS}
   
   
 
-  <button class="btn" id="continueBtn" disabled>Continue →</button>
+  <button class="btn" id="continueBtn" onclick="goContinue()" disabled>Continue →</button>
 </div>
 
 <script>
@@ -914,12 +898,10 @@ var iv = setInterval(function(){
 }, 500);
 
 function goContinue(){
+  if(btn.disabled) return;
   try { window.open('${MONETAG_SMART}', '_blank'); } catch(e){}
-  setTimeout(function(){ window.location = '${nextPage}'; }, 400);
+  setTimeout(function(){ window.location.href = '${nextPage}'; }, 400);
 }
-
-btn.addEventListener('click', goContinue);
-btn.addEventListener('touchstart', function(e){ if(!this.disabled){ e.preventDefault(); goContinue(); }}, {passive:false});
 </script>
 ${PAGE_ADS}
   
@@ -1062,7 +1044,7 @@ ${AD_SCRIPTS}
       <div class="timer-label">Generating secure token...</div>
       <div class="progress-bar"><div class="progress-fill" id="progressFill4" style="width:100%"></div></div>
     </div>
-    <button class="btn" id="generateBtn" disabled>
+    <button class="btn" id="generateBtn" onclick="goContinue()" disabled>
       🔗 Generate Link →
     </button>
   </div>
@@ -1090,12 +1072,10 @@ var iv = setInterval(function(){
 }, 500);
 
 function goContinue(){
+  if(btn.disabled) return;
   try { window.open('${MONETAG_SMART}', '_blank'); } catch(e){}
-  setTimeout(function(){ window.location = '${nextPage}'; }, 400);
+  setTimeout(function(){ window.location.href = '${nextPage}'; }, 400);
 }
-
-btn.addEventListener('click', goContinue);
-btn.addEventListener('touchstart', function(e){ if(!this.disabled){ e.preventDefault(); goContinue(); }}, {passive:false});
 </script>
 ${PAGE_ADS}
   
@@ -1150,7 +1130,7 @@ ${AD_SCRIPTS}
     <div class="final-link">
       <a href="${finalDest}" target="_blank">🔗 Click here to open your link</a>
     </div>
-    <button class="btn" id="finalBtn">
+    <button class="btn" id="finalBtn" onclick="goFinal()">
       ✅ Open My Link Now →
     </button>
   </div>
@@ -1253,12 +1233,9 @@ var iv = setInterval(function(){
 }, 500);
 
 function goFinal(){
-  window.open('${MONETAG_SMART}', '_blank');
-  window.location = '${finalDest}';
+  try { window.open('${MONETAG_SMART}', '_blank'); } catch(e){}
+  window.location.href = '${finalDest}';
 }
-
-document.getElementById('finalBtn').addEventListener('click', goFinal);
-document.getElementById('finalBtn').addEventListener('touchstart', function(e){ e.preventDefault(); goFinal(); }, {passive:false});
 </script>
 ${PAGE_ADS}
   
