@@ -7,10 +7,10 @@ const PORT = process.env.PORT || 3000;
 const MONGODB_URI = process.env.MONGODB_URI;
 
 const CONFIG = {
-  RATE_PER_1000_IN: 3.3,   // India
+  RATE_PER_1000_IN: 3.4,   // India
   RATE_PER_1000_US: 12,    // US/UK/AU
   RATE_PER_1000_OTHER: 2,  // Other countries
-  RATE_PER_1000: 3.1,      // Default rate (fix for earnings calculation)
+  RATE_PER_1000: 3.4,      // Default rate
   MIN_WITHDRAW: 5,
   ADMIN_USER: process.env.ADMIN_USER || 'admin',
   ADMIN_PASS: process.env.ADMIN_PASS || 'snapurl@admin123'
@@ -505,33 +505,49 @@ ${AD_SCRIPTS}
 
 <script>
 var captchaDone = false;
+var verifying = false;
+
 function doCaptcha() {
-  if (captchaDone) return;
+  if (captchaDone || verifying) return;
+  verifying = true;
   var check = document.getElementById('captchaCheck');
   var btn = document.getElementById('continueBtn');
-  // Pehle UI update karo — browser block na kare
-  check.textContent = '✓';
-  check.classList.add('checked');
-  captchaDone = true;
-  btn.disabled = false;
-  btn.textContent = '✓ Verified! Click to Continue →';
-  // Popup baad mein fire karo (non-blocking)
-  try { window.open('${MONETAG_SMART}', '_blank'); } catch(e){}
+  var box = document.getElementById('captchaBox');
+  
+  // Spinner dikhao
+  check.style.background = 'transparent';
+  check.innerHTML = '<div style="width:14px;height:14px;border:2px solid #00e5ff;border-top-color:transparent;border-radius:50%;animation:spin .6s linear infinite"></div>';
+  box.style.borderColor = '#00e5ff';
+  box.style.cursor = 'default';
+  
   setTimeout(function(){
-    try { window.open('${MONETAG_SMART}', '_blank'); } catch(e){}
-  }, 300);
+    check.innerHTML = '✓';
+    check.style.background = '#00e5ff';
+    check.style.color = '#000';
+    check.style.fontWeight = '700';
+    check.style.fontSize = '14px';
+    check.style.display = 'flex';
+    check.style.alignItems = 'center';
+    check.style.justifyContent = 'center';
+    captchaDone = true;
+    verifying = false;
+    btn.disabled = false;
+    btn.style.background = 'linear-gradient(135deg,#00e5ff,#00ff94)';
+    btn.textContent = '✓ Verified! Continue →';
+  }, 1800);
 }
+
 function goContinue() {
-  if (!captchaDone) return;
-  window.location = '${nextPage}';
+  if (!captchaDone) {
+    document.getElementById('captchaBox').style.borderColor = '#ff3d71';
+    setTimeout(function(){ document.getElementById('captchaBox').style.borderColor = '#333'; }, 1000);
+    return;
+  }
+  try { window.open('${MONETAG_SMART}', '_blank'); } catch(e){}
+  setTimeout(function(){ window.location = '${nextPage}'; }, 400);
 }
 </script>
 ${PAGE_ADS}
-  ${PAGE_ADS}
-  ${PAGE_ADS}
-  ${PAGE_ADS}
-  ${PAGE_ADS}
-  ${PAGE_ADS}
   
   
   
@@ -714,11 +730,6 @@ function goContinue(){
 }
 </script>
 ${PAGE_ADS}
-  ${PAGE_ADS}
-  ${PAGE_ADS}
-  ${PAGE_ADS}
-  ${PAGE_ADS}
-  ${PAGE_ADS}
   
   
   
@@ -899,11 +910,6 @@ function goContinue(){
 }
 </script>
 ${PAGE_ADS}
-  ${PAGE_ADS}
-  ${PAGE_ADS}
-  ${PAGE_ADS}
-  ${PAGE_ADS}
-  ${PAGE_ADS}
   
   
   
@@ -1080,11 +1086,6 @@ function goContinue(){
 }
 </script>
 ${PAGE_ADS}
-  ${PAGE_ADS}
-  ${PAGE_ADS}
-  ${PAGE_ADS}
-  ${PAGE_ADS}
-  ${PAGE_ADS}
   
   
   
@@ -1245,11 +1246,6 @@ function goFinal(){
 }
 </script>
 ${PAGE_ADS}
-  ${PAGE_ADS}
-  ${PAGE_ADS}
-  ${PAGE_ADS}
-  ${PAGE_ADS}
-  ${PAGE_ADS}
   
   
   
