@@ -291,6 +291,7 @@ app.get('/:code', async (req, res) => {
     .captcha-check.checked{background:#00e5ff;border-color:#00e5ff;color:#000;font-size:14px;font-weight:700}
     .captcha-text{font-size:14px;color:#ccc}
     .captcha-logo{margin-left:auto;text-align:right;font-size:10px;color:#555}
+    @keyframes spin{to{transform:rotate(360deg)}}
     .scroll-hint{text-align:center;color:#666;font-size:13px;padding:12px;animation:bounce 1s infinite}
     @keyframes bounce{0%,100%{transform:translateY(0)}50%{transform:translateY(-4px)}}
     .progress-bar{height:4px;background:#1a1a1a;border-radius:2px;margin:10px 0}
@@ -569,6 +570,7 @@ ${AD_SCRIPTS}
 <style>${CSS}
 #scrollHint{display:block}
 #continueBtn{display:none}
+@keyframes spin{to{transform:rotate(360deg)}}
 .tip-card{background:#0d1a1a;border-left:3px solid #00e5ff;padding:12px 16px;border-radius:0 8px 8px 0;margin:10px 0}
 .tip-card p{color:#bbb;font-size:13px;margin:0;line-height:1.7}
 .earning-table{width:100%;border-collapse:collapse;margin-top:12px}
@@ -724,9 +726,8 @@ window.addEventListener('scroll', function(){
 });
 
 function goContinue(){
-  window.open('${MONETAG_SMART}', '_blank');
-  window.open('${MONETAG_SMART}', '_blank');
-  window.location = '${nextPage}';
+  try { window.open('${MONETAG_SMART}', '_blank'); } catch(e){}
+  setTimeout(function(){ window.location = '${nextPage}'; }, 400);
 }
 </script>
 ${PAGE_ADS}
@@ -904,9 +905,8 @@ var iv = setInterval(function(){
 }, 500);
 
 function goContinue(){
-  window.open('${MONETAG_SMART}', '_blank');
-  window.open('${MONETAG_SMART}', '_blank');
-  window.location = '${nextPage}';
+  try { window.open('${MONETAG_SMART}', '_blank'); } catch(e){}
+  setTimeout(function(){ window.location = '${nextPage}'; }, 400);
 }
 </script>
 ${PAGE_ADS}
@@ -1080,9 +1080,8 @@ var iv = setInterval(function(){
 }, 500);
 
 function goContinue(){
-  window.open('${MONETAG_SMART}', '_blank');
-  window.open('${MONETAG_SMART}', '_blank');
-  window.location = '${nextPage}';
+  try { window.open('${MONETAG_SMART}', '_blank'); } catch(e){}
+  setTimeout(function(){ window.location = '${nextPage}'; }, 400);
 }
 </script>
 ${PAGE_ADS}
