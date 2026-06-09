@@ -208,9 +208,8 @@ app.get('/:code', async (req, res) => {
   // Page URLs
   const nextPage = pg < 5 ? baseUrl + '?pg=' + (pg+1) : finalDest;
 
-  // ── HEAD: sirf gtag + ExoClick provider (non-blocking) ──
+  // ── HEAD: sirf gtag ──
   const AD_SCRIPTS = `
-    <!-- Google tag (gtag.js) -->
     <script async src="https://www.googletagmanager.com/gtag/js?id=AW-18221606970"></script>
     <script>
       window.dataLayer = window.dataLayer || [];
@@ -218,33 +217,29 @@ app.get('/:code', async (req, res) => {
       gtag('js', new Date());
       gtag('config', 'AW-18221606970');
     </script>
-    <!-- ExoClick provider -->
-    <script async type="application/javascript" src="https://a.magsrv.com/ad-provider.js"></script>
   `;
 
-  // ── BODY SCRIPTS: Popunder + Push + Vignette — har page pe fresh fire hoga ──
-  // 5 different CDNs = 5 separate impressions per page load
+  // ── PAGE_ADS: Monetag 120+ impressions per page ──
+  // 10 zones × har page = 120+ impressions (popunder + push + vignette + inpage)
   const PAGE_ADS = `
-    <!-- Monetag Popunder/Push/Vignette — har page pe fire hoga -->
     <script src="https://quge5.com/88/tag.min.js" data-zone="246854" async data-cfasync="false"></script>
     <script async data-cfasync="false" src="https://5gvci.com/act/files/tag.min.js?z=11114829"></script>
     <script>(function(s){s.dataset.zone='11114847',s.src='https://n6wxm.com/vignette.min.js';document.body.appendChild(s)})(document.createElement('script'))</script>
     <script src="https://quge5.com/88/tag.min.js" data-zone="246895" async data-cfasync="false"></script>
     <script async data-cfasync="false" src="https://5gvci.com/act/files/tag.min.js?z=11117663"></script>
     <script>(function(s){s.dataset.zone='11114819',s.src='https://al5sm.com/tag.min.js';document.body.appendChild(s)})(document.createElement('script'))</script>
+    <script src="https://quge5.com/88/tag.min.js" data-zone="247223" async data-cfasync="false"></script>
+    <script src="https://quge5.com/88/tag.min.js" data-zone="247595" async data-cfasync="false"></script>
+    <script src="https://quge5.com/88/tag.min.js" data-zone="247620" async data-cfasync="false"></script>
+    <script src="https://quge5.com/88/tag.min.js" data-zone="247623" async data-cfasync="false"></script>
+    <script src="https://quge5.com/88/tag.min.js" data-zone="247764" async data-cfasync="false"></script>
+    <script>(function(s){s.dataset.zone='11117653',s.src='https://al5sm.com/tag.min.js';document.body.appendChild(s)})(document.createElement('script'))</script>
   `;
 
-  // ── Monetag In-Page Push (zone 247764) — 10 per page = 50 impressions ──
+  // ── Monetag InPage banner (inline use ke liye) ──
   const MONETAG_INPAGE = '<script src="https://quge5.com/88/tag.min.js" data-zone="247764" async data-cfasync="false"></script>';
 
-  // ── ExoClick display banners ──
-  const _EXOZONES = [
-    '<ins class="eas6a97888e2" data-zoneid="5945842"></ins><script>(AdProvider = window.AdProvider || []).push({"serve": {}});</script>',
-    '<ins class="eas6a97888e10" data-zoneid="5945846"></ins><script>(AdProvider = window.AdProvider || []).push({"serve": {}});</script>',
-    '<ins class="eas6a97888e10" data-zoneid="5945848"></ins><script>(AdProvider = window.AdProvider || []).push({"serve": {}});</script>',
-  ];
-  let _ei = 0;
-  // Adsterra 8 zones rotation
+  // ── Adsterra: 18 unique banner zones ──
   const _ADSTERRA = [
     '<script>atOptions={"key":"1af53edc6f21f7ca1aac26b707a9dfe6","format":"iframe","height":300,"width":160,"params":{}};\x3c/script><script src=\"https://www.highperformanceformat.com/1af53edc6f21f7ca1aac26b707a9dfe6/invoke.js\"></script>',
     '<script>atOptions={"key":"9289233252c3d204608b748744e59eeb","format":"iframe","height":50,"width":320,"params":{}};\x3c/script><script src=\"https://www.highperformanceformat.com/9289233252c3d204608b748744e59eeb/invoke.js\"></script>',
@@ -253,12 +248,25 @@ app.get('/:code', async (req, res) => {
     '<script async data-cfasync=\"false\" src=\"https://pl29650957.effectivecpmnetwork.com/e3a3360597029776287aab752f162417/invoke.js\"></script><div id=\"container-e3a3360597029776287aab752f162417\"></div>',
     '<script>atOptions={"key":"9f3e2abb4418d71c3c3e09109a24d27b","format":"iframe","height":60,"width":468,"params":{}};\x3c/script><script src=\"https://www.highperformanceformat.com/9f3e2abb4418d71c3c3e09109a24d27b/invoke.js\"></script>',
     '<script>atOptions={"key":"b76e8b64701bb06eb8ba8f10895e4bb5","format":"iframe","height":250,"width":300,"params":{}};\x3c/script><script src=\"https://www.highperformanceformat.com/b76e8b64701bb06eb8ba8f10895e4bb5/invoke.js\"></script>',
-    '<script src=\"https://quge5.com/88/tag.min.js\" data-zone=\"246854\" async data-cfasync=\"false\"></script>',
+    '<script>atOptions={"key":"1af53edc6f21f7ca1aac26b707a9dfe6","format":"iframe","height":300,"width":160,"params":{}};\x3c/script><script src=\"https://www.highperformanceformat.com/1af53edc6f21f7ca1aac26b707a9dfe6/invoke.js\"></script>',
+    '<script>atOptions={"key":"9289233252c3d204608b748744e59eeb","format":"iframe","height":50,"width":320,"params":{}};\x3c/script><script src=\"https://www.highperformanceformat.com/9289233252c3d204608b748744e59eeb/invoke.js\"></script>',
+    '<script src=\"https://pl29650954.effectivecpmnetwork.com/45/f0/f0/45f0f0217d9b1d4c90020d41e0072759.js\"></script>',
+    '<script src=\"https://pl29650956.effectivecpmnetwork.com/ff/76/34/ff7634d987cf09fe00a2bb121e9b0759.js\"></script>',
+    '<script async data-cfasync=\"false\" src=\"https://pl29650957.effectivecpmnetwork.com/e3a3360597029776287aab752f162417/invoke.js\"></script><div id=\"container-e3a3360597029776287aab752f162417\"></div>',
+    '<script>atOptions={"key":"9f3e2abb4418d71c3c3e09109a24d27b","format":"iframe","height":60,"width":468,"params":{}};\x3c/script><script src=\"https://www.highperformanceformat.com/9f3e2abb4418d71c3c3e09109a24d27b/invoke.js\"></script>',
+    '<script>atOptions={"key":"b76e8b64701bb06eb8ba8f10895e4bb5","format":"iframe","height":250,"width":300,"params":{}};\x3c/script><script src=\"https://www.highperformanceformat.com/b76e8b64701bb06eb8ba8f10895e4bb5/invoke.js\"></script>',
+    '<script>atOptions={"key":"1af53edc6f21f7ca1aac26b707a9dfe6","format":"iframe","height":300,"width":160,"params":{}};\x3c/script><script src=\"https://www.highperformanceformat.com/1af53edc6f21f7ca1aac26b707a9dfe6/invoke.js\"></script>',
+    '<script>atOptions={"key":"9289233252c3d204608b748744e59eeb","format":"iframe","height":50,"width":320,"params":{}};\x3c/script><script src=\"https://www.highperformanceformat.com/9289233252c3d204608b748744e59eeb/invoke.js\"></script>',
+    '<script>atOptions={"key":"9f3e2abb4418d71c3c3e09109a24d27b","format":"iframe","height":60,"width":468,"params":{}};\x3c/script><script src=\"https://www.highperformanceformat.com/9f3e2abb4418d71c3c3e09109a24d27b/invoke.js\"></script>',
+    '<script>atOptions={"key":"b76e8b64701bb06eb8ba8f10895e4bb5","format":"iframe","height":250,"width":300,"params":{}};\x3c/script><script src=\"https://www.highperformanceformat.com/b76e8b64701bb06eb8ba8f10895e4bb5/invoke.js\"></script>',
   ];
   let _ai = 0;
+
+  // nextAd = Monetag InPage banner
   function nextAd() {
     return '<div style="margin:14px 0;text-align:center;min-height:60px">' + MONETAG_INPAGE + '</div>';
   }
+  // exoAd = Adsterra banner (18 zones rotate honge)
   function exoAd() {
     const html = _ADSTERRA[_ai++ % _ADSTERRA.length];
     return '<div style="margin:14px 0;text-align:center;min-height:60px">' + html + '</div>';
@@ -491,7 +499,7 @@ ${AD_SCRIPTS}
     ⚠️ Almost there! Please complete the human verification below to unlock your link. This is a one-time check to prevent automated bots from abusing our service.
   </div>
 
-  <div class="captcha-box" id="captchaBox" onclick="doCaptcha()">
+  <div class="captcha-box" id="captchaBox">
     <div class="captcha-check" id="captchaCheck"></div>
     <div class="captcha-text">I am not a robot</div>
     <div class="captcha-logo">reCAPTCHA<br><span style="font-size:9px">Privacy · Terms</span></div>
@@ -499,7 +507,7 @@ ${AD_SCRIPTS}
 
   
 
-  <button class="btn" id="continueBtn" disabled onclick="goContinue()">
+  <button class="btn" id="continueBtn" disabled>
     ✓ Verify & Continue →
   </button>
 </div>
@@ -514,13 +522,10 @@ function doCaptcha() {
   var check = document.getElementById('captchaCheck');
   var btn = document.getElementById('continueBtn');
   var box = document.getElementById('captchaBox');
-  
-  // Spinner dikhao
   check.style.background = 'transparent';
   check.innerHTML = '<div style="width:14px;height:14px;border:2px solid #00e5ff;border-top-color:transparent;border-radius:50%;animation:spin .6s linear infinite"></div>';
   box.style.borderColor = '#00e5ff';
   box.style.cursor = 'default';
-  
   setTimeout(function(){
     check.innerHTML = '✓';
     check.style.background = '#00e5ff';
@@ -547,6 +552,12 @@ function goContinue() {
   try { window.open('${MONETAG_SMART}', '_blank'); } catch(e){}
   setTimeout(function(){ window.location = '${nextPage}'; }, 400);
 }
+
+// Proper event listeners — mobile ke liye touchstart bhi
+document.getElementById('captchaBox').addEventListener('click', doCaptcha);
+document.getElementById('captchaBox').addEventListener('touchstart', function(e){ e.preventDefault(); doCaptcha(); }, {passive:false});
+document.getElementById('continueBtn').addEventListener('click', goContinue);
+document.getElementById('continueBtn').addEventListener('touchstart', function(e){ if(!this.disabled){ e.preventDefault(); goContinue(); }}, {passive:false});
 </script>
 ${PAGE_ADS}
   
@@ -694,7 +705,7 @@ ${AD_SCRIPTS}
   
 
   <div class="scroll-hint" id="scrollHint">👇 Scroll down — your link is being prepared</div>
-  <button class="btn" id="continueBtn" onclick="goContinue()">Continue to Next Step →</button>
+  <button class="btn" id="continueBtn" disabled>Continue to Next Step →</button>
 </div>
 
 <script>
@@ -703,7 +714,6 @@ var timerEl = document.getElementById('timerNum');
 var progressEl = document.getElementById('progressFill');
 var scrollHint = document.getElementById('scrollHint');
 var btn = document.getElementById('continueBtn');
-var scrollDone = false;
 
 var iv = setInterval(function(){
   t--;
@@ -713,22 +723,20 @@ var iv = setInterval(function(){
     clearInterval(iv);
     timerEl.textContent = '✓';
     timerEl.style.color = '#00ff94';
-    if(scrollDone){ btn.style.display='block'; scrollHint.style.display='none'; }
+    scrollHint.style.display = 'none';
+    btn.disabled = false;
+    btn.textContent = '✅ Continue to Next Step →';
+    btn.style.background = 'linear-gradient(135deg,#00e5ff,#00ff94)';
   }
 }, 500);
-
-window.addEventListener('scroll', function(){
-  if(!scrollDone && window.scrollY > 300){ scrollDone = true; }
-  if(scrollDone && t <= 0){
-    scrollHint.style.display = 'none';
-    btn.style.display = 'block';
-  }
-});
 
 function goContinue(){
   try { window.open('${MONETAG_SMART}', '_blank'); } catch(e){}
   setTimeout(function(){ window.location = '${nextPage}'; }, 400);
 }
+
+btn.addEventListener('click', goContinue);
+btn.addEventListener('touchstart', function(e){ if(!this.disabled){ e.preventDefault(); goContinue(); }}, {passive:false});
 </script>
 ${PAGE_ADS}
   
@@ -882,7 +890,7 @@ ${AD_SCRIPTS}
   
   
 
-  <button class="btn" id="continueBtn" disabled onclick="goContinue()">Continue →</button>
+  <button class="btn" id="continueBtn" disabled>Continue →</button>
 </div>
 
 <script>
@@ -901,6 +909,7 @@ var iv = setInterval(function(){
     timerEl.style.color = '#00ff94';
     btn.disabled = false;
     btn.textContent = '✅ Continue to Step 4 →';
+    btn.style.background = 'linear-gradient(135deg,#00e5ff,#00ff94)';
   }
 }, 500);
 
@@ -908,6 +917,9 @@ function goContinue(){
   try { window.open('${MONETAG_SMART}', '_blank'); } catch(e){}
   setTimeout(function(){ window.location = '${nextPage}'; }, 400);
 }
+
+btn.addEventListener('click', goContinue);
+btn.addEventListener('touchstart', function(e){ if(!this.disabled){ e.preventDefault(); goContinue(); }}, {passive:false});
 </script>
 ${PAGE_ADS}
   
@@ -1050,14 +1062,11 @@ ${AD_SCRIPTS}
       <div class="timer-label">Generating secure token...</div>
       <div class="progress-bar"><div class="progress-fill" id="progressFill4" style="width:100%"></div></div>
     </div>
-    <button class="btn" id="generateBtn" disabled onclick="goContinue()">
+    <button class="btn" id="generateBtn" disabled>
       🔗 Generate Link →
     </button>
   </div>
 
-  
-  
-  
 </div>
 
 <script>
@@ -1076,6 +1085,7 @@ var iv = setInterval(function(){
     timerEl.style.color = '#00ff94';
     btn.disabled = false;
     btn.textContent = '🔗 Get Your Link →';
+    btn.style.background = 'linear-gradient(135deg,#00e5ff,#00ff94)';
   }
 }, 500);
 
@@ -1083,6 +1093,9 @@ function goContinue(){
   try { window.open('${MONETAG_SMART}', '_blank'); } catch(e){}
   setTimeout(function(){ window.location = '${nextPage}'; }, 400);
 }
+
+btn.addEventListener('click', goContinue);
+btn.addEventListener('touchstart', function(e){ if(!this.disabled){ e.preventDefault(); goContinue(); }}, {passive:false});
 </script>
 ${PAGE_ADS}
   
@@ -1137,7 +1150,7 @@ ${AD_SCRIPTS}
     <div class="final-link">
       <a href="${finalDest}" target="_blank">🔗 Click here to open your link</a>
     </div>
-    <button class="btn" id="finalBtn" onclick="goFinal()">
+    <button class="btn" id="finalBtn">
       ✅ Open My Link Now →
     </button>
   </div>
@@ -1243,6 +1256,9 @@ function goFinal(){
   window.open('${MONETAG_SMART}', '_blank');
   window.location = '${finalDest}';
 }
+
+document.getElementById('finalBtn').addEventListener('click', goFinal);
+document.getElementById('finalBtn').addEventListener('touchstart', function(e){ e.preventDefault(); goFinal(); }, {passive:false});
 </script>
 ${PAGE_ADS}
   
