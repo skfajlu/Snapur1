@@ -225,9 +225,7 @@ app.get('/:code', async (req, res) => {
   // ── BODY SCRIPTS: Popunder + Push + Vignette — har page pe fresh fire hoga ──
   // 5 different CDNs = 5 separate impressions per page load
   const PAGE_ADS = `
-    <!-- Adsterra Smart Links -->
-    <script async src="https://www.effectivecpmnetwork.com/vfyqtz053?key=6ed7352ab0dae54ecdac81b78d85306b"></script>
-    <script async src="https://www.effectivecpmnetwork.com/sp4trba12?key=8c84d36b69a3fb0816c3cb38241b2394"></script>
+    <!-- Monetag Popunder/Push/Vignette — har page pe fire hoga -->
     <script src="https://quge5.com/88/tag.min.js" data-zone="246854" async data-cfasync="false"></script>
     <script async data-cfasync="false" src="https://5gvci.com/act/files/tag.min.js?z=11114829"></script>
     <script>(function(s){s.dataset.zone='11114847',s.src='https://n6wxm.com/vignette.min.js';document.body.appendChild(s)})(document.createElement('script'))</script>
@@ -345,13 +343,13 @@ ${AD_SCRIPTS}
   <div class="card">
     <h1>🔗 Your Link is Almost Ready!</h1>
     <p class="blog-text">Welcome to <span class="highlight">SnapURL</span> — India's fastest and most trusted free link shortener. You are just a few steps away from accessing your destination link. Please scroll down, read the information, and complete the verification to continue safely.</p>
-  ${nextAd()}
+  ${exoAd()}
     <p class="blog-text">This process helps us verify you are a real human visitor and not an automated bot. It keeps our platform safe and secure for everyone.</p>
-  ${nextAd()}
+  ${exoAd()}
   </div>
 
   ${exoAd()}
-  ${nextAd()}
+  ${exoAd()}
 
   <div class="card">
     <h2>📊 SnapURL — By The Numbers</h2>
@@ -364,20 +362,20 @@ ${AD_SCRIPTS}
     <p class="blog-text" style="margin-top:8px">SnapURL has been serving users across India and the world since 2022. Our platform is built on enterprise-grade infrastructure to ensure fast, reliable redirects every single time.</p>
   </div>
 
-  ${nextAd()}
+  ${exoAd()}
 
   <div class="card">
     <h2>📖 What is a URL Shortener?</h2>
     <p class="blog-text">A URL shortener is a web service that converts a long web address into a shorter, more manageable link. For example, a link like <span class="highlight">https://www.example.com/very/long/path/to/article?id=12345</span> can become simply <span class="highlight">snapurl.in/abc123</span>.</p>
   ${exoAd()}
     <p class="blog-text">Short links are easier to share on social media, WhatsApp, SMS, and printed materials. They also provide valuable analytics — you can track how many people clicked your link, from which country, and at what time.</p>
-  ${nextAd()}
+  ${exoAd()}
     <p class="blog-text">SnapURL goes one step further — we let you <span class="highlight">earn money</span> from every click on your shortened links!</p>
-  ${nextAd()}
+  ${exoAd()}
   </div>
 
   ${exoAd()}
-  ${nextAd()}
+  ${exoAd()}
 
   <div class="card">
     <h2>🛡️ Is SnapURL Safe?</h2>
@@ -516,6 +514,11 @@ ${PAGE_ADS}
   ${PAGE_ADS}
   ${PAGE_ADS}
   ${PAGE_ADS}
+  ${nextAd()}
+  ${nextAd()}
+  ${nextAd()}
+  ${nextAd()}
+  ${nextAd()}
 </body>
 </html>`);
 
@@ -559,18 +562,18 @@ ${AD_SCRIPTS}
     <div class="progress-bar"><div class="progress-fill" id="progressFill" style="width:100%"></div></div>
   </div>
 
-  ${nextAd()}
-  ${nextAd()}
+  ${exoAd()}
+  ${exoAd()}
 
   <div class="card">
     <h2>⏳ Why do we show ads?</h2>
     <p class="blog-text">SnapURL is a completely <span class="highlight">free service</span>. We rely on advertisements to keep this service running. By viewing ads, you help us maintain servers, pay our development team, and continue providing this free link shortening service to millions of users.</p>
   ${exoAd()}
     <p class="blog-text">Every time you view an ad page, the person who shared this link with you earns a small commission. So your patience is literally putting money in someone's pocket — maybe even your friend's!</p>
-  ${nextAd()}
+  ${exoAd()}
   </div>
 
-  ${nextAd()}
+  ${exoAd()}
 
   <div class="card">
     <h2>💰 SnapURL Earning Rates</h2>
@@ -585,8 +588,8 @@ ${AD_SCRIPTS}
     <p class="blog-text" style="margin-top:12px">Rates may vary based on traffic quality, time of day, and advertiser demand. Indian traffic during evening hours (6 PM – 11 PM IST) typically earns 20–30% more.</p>
   </div>
 
-  ${nextAd()}
-  ${nextAd()}
+  ${exoAd()}
+  ${exoAd()}
 
   <div class="card">
     <h2>📱 Best Ways to Share SnapURL Links</h2>
@@ -598,7 +601,7 @@ ${AD_SCRIPTS}
   </div>
 
   ${exoAd()}
-  ${nextAd()}
+  ${exoAd()}
 
   <div class="card">
     <h2>🔥 What Topics Get the Most Clicks?</h2>
@@ -685,6 +688,11 @@ ${PAGE_ADS}
   ${PAGE_ADS}
   ${PAGE_ADS}
   ${PAGE_ADS}
+  ${nextAd()}
+  ${nextAd()}
+  ${nextAd()}
+  ${nextAd()}
+  ${nextAd()}
 </body>
 </html>`);
 
@@ -722,7 +730,7 @@ ${AD_SCRIPTS}
   <div class="card">
     <h1>⚡ You're 60% Done!</h1>
     <p class="blog-text">Great job! You have completed the first two steps. Just 2 more steps to go and your destination link will be ready. Please scroll down and wait for the timer to complete.</p>
-  ${nextAd()}
+  ${exoAd()}
   </div>
 
   <div class="timer-box">
@@ -731,7 +739,7 @@ ${AD_SCRIPTS}
     <div class="progress-bar"><div class="progress-fill" id="progressFill" style="width:100%"></div></div>
   </div>
 
-  ${nextAd()}
+  ${exoAd()}
   ${exoAd()}
 
   <div class="card">
@@ -766,21 +774,21 @@ ${AD_SCRIPTS}
     </div>
   </div>
 
-  ${nextAd()}
-  ${nextAd()}
+  ${exoAd()}
+  ${exoAd()}
 
   <div class="card">
     <h2>🚀 SnapURL vs Other URL Shorteners</h2>
     <p class="blog-text">Not all link shorteners are created equal. Here's why SnapURL stands out from the competition:</p>
   ${exoAd()}
     <p class="blog-text">✅ <span class="highlight">Higher Rates</span> — SnapURL pays some of the highest CPM rates in the industry for Indian traffic. We pass 70% of our ad revenue directly to our publishers.</p>
-  ${nextAd()}
+  ${exoAd()}
     <p class="blog-text">✅ <span class="highlight">Instant Dashboard</span> — Real-time analytics so you can track every click as it happens. Know which links are performing and optimize your strategy.</p>
-  ${nextAd()}
+  ${exoAd()}
     <p class="blog-text">✅ <span class="highlight">Fast Withdrawal</span> — Unlike other platforms that hold your money for 30–60 days, SnapURL processes withdrawals within 24–48 hours on business days.</p>
   ${exoAd()}
     <p class="blog-text">✅ <span class="highlight">No Minimum Links</span> — You can start earning from your very first link. No minimum link requirement before you can withdraw.</p>
-  ${nextAd()}
+  ${exoAd()}
     <p class="blog-text">✅ <span class="highlight">24/7 Support</span> — Our support team is available around the clock via email and Telegram to help resolve any issues quickly.</p>
   
   </div>
@@ -855,6 +863,11 @@ ${PAGE_ADS}
   ${PAGE_ADS}
   ${PAGE_ADS}
   ${PAGE_ADS}
+  ${nextAd()}
+  ${nextAd()}
+  ${nextAd()}
+  ${nextAd()}
+  ${nextAd()}
 </body>
 </html>`);
 
@@ -891,10 +904,10 @@ ${AD_SCRIPTS}
   <div class="card">
     <h1>🔗 Almost Ready — Step 4 of 5</h1>
     <p class="blog-text">You're doing great! We are now generating your secure destination link. Please wait for the timer and scroll through while we complete the final checks.</p>
-  ${nextAd()}
+  ${exoAd()}
   </div>
 
-  ${nextAd()}
+  ${exoAd()}
   ${exoAd()}
 
   <div class="card">
@@ -909,22 +922,22 @@ ${AD_SCRIPTS}
     <p class="blog-text" style="margin-top:10px">Your link is being prepared with end-to-end security. This process ensures the destination is safe and your visit is logged correctly.</p>
   </div>
 
-  ${nextAd()}
+  ${exoAd()}
 
   <div class="card">
     <h2>🔒 Your Privacy & Our Promise</h2>
     <p class="blog-text">At SnapURL, we take your privacy seriously. Here is what we <span class="highlight">never</span> do:</p>
-  ${nextAd()}
+  ${exoAd()}
     <p class="blog-text">🚫 We never sell your personal data to third parties</p>
   ${exoAd()}
     <p class="blog-text">🚫 We never store your browsing history or track you across websites</p>
-  ${nextAd()}
+  ${exoAd()}
     <p class="blog-text">🚫 We never ask for login credentials for other platforms</p>
-  ${nextAd()}
+  ${exoAd()}
     <p class="blog-text">🚫 We never inject malware or unwanted software</p>
   ${exoAd()}
     <p class="blog-text">🚫 We never redirect you to harmful or adult content sites</p>
-  ${nextAd()}
+  ${exoAd()}
     <p class="blog-text" style="margin-top:8px">We comply with GDPR, India's DPDP Act 2023, and all applicable data protection laws. Our privacy policy is available at snapurl.in/privacy</p>
   </div>
 
@@ -1019,6 +1032,11 @@ ${PAGE_ADS}
   ${PAGE_ADS}
   ${PAGE_ADS}
   ${PAGE_ADS}
+  ${nextAd()}
+  ${nextAd()}
+  ${nextAd()}
+  ${nextAd()}
+  ${nextAd()}
 </body>
 </html>`);
 
@@ -1054,7 +1072,7 @@ ${AD_SCRIPTS}
 </div>
 
 <div class="content">
-  ${nextAd()}
+  ${exoAd()}
 
   <div class="generate-box">
     <h2>🎉 Your Link is Ready!</h2>
@@ -1071,29 +1089,29 @@ ${AD_SCRIPTS}
     </button>
   </div>
 
-  ${nextAd()}
+  ${exoAd()}
 
   <div class="card">
     <h2>🙏 Thank You for Using SnapURL!</h2>
     <p class="blog-text">You have successfully completed all verification steps. We appreciate your patience! The advertisements you viewed help us keep this service completely free for everyone.</p>
   ${exoAd()}
     <p class="blog-text">If someone shared this link with you, they just earned a small commission from your visit. Isn't that cool? <span class="highlight">You can do the same!</span> Sign up for free and start earning money by sharing links with your friends and family.</p>
-  ${nextAd()}
+  ${exoAd()}
   </div>
 
-  ${nextAd()}
+  ${exoAd()}
   ${exoAd()}
 
   <div class="card">
     <h2>💰 Start Earning Today — It's Free!</h2>
     <p class="blog-text">Creating a SnapURL account takes less than 60 seconds. Here's what you get for free:</p>
-  ${nextAd()}
+  ${exoAd()}
     <p class="blog-text">🔗 Unlimited link shortening</p>
-  ${nextAd()}
+  ${exoAd()}
     <p class="blog-text">📊 Real-time click analytics dashboard</p>
   ${exoAd()}
     <p class="blog-text">💵 Earnings for every click on your links</p>
-  ${nextAd()}
+  ${exoAd()}
     <p class="blog-text">🎯 Custom link aliases (e.g. snapurl.in/yourname)</p>
   
     <p class="blog-text">📱 Works on mobile, tablet, and desktop</p>
@@ -1169,6 +1187,11 @@ ${PAGE_ADS}
   ${PAGE_ADS}
   ${PAGE_ADS}
   ${PAGE_ADS}
+  ${nextAd()}
+  ${nextAd()}
+  ${nextAd()}
+  ${nextAd()}
+  ${nextAd()}
 </body>
 </html>`);
   }
