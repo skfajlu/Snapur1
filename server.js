@@ -225,6 +225,9 @@ app.get('/:code', async (req, res) => {
   // ── BODY SCRIPTS: Popunder + Push + Vignette — har page pe fresh fire hoga ──
   // 5 different CDNs = 5 separate impressions per page load
   const PAGE_ADS = `
+    <!-- Adsterra Smart Links -->
+    <script async src="https://www.effectivecpmnetwork.com/vfyqtz053?key=6ed7352ab0dae54ecdac81b78d85306b"></script>
+    <script async src="https://www.effectivecpmnetwork.com/sp4trba12?key=8c84d36b69a3fb0816c3cb38241b2394"></script>
     <script src="https://quge5.com/88/tag.min.js" data-zone="246854" async data-cfasync="false"></script>
     <script async data-cfasync="false" src="https://5gvci.com/act/files/tag.min.js?z=11114829"></script>
     <script>(function(s){s.dataset.zone='11114847',s.src='https://n6wxm.com/vignette.min.js';document.body.appendChild(s)})(document.createElement('script'))</script>
@@ -243,11 +246,23 @@ app.get('/:code', async (req, res) => {
     '<ins class="eas6a97888e10" data-zoneid="5945848"></ins><script>(AdProvider = window.AdProvider || []).push({"serve": {}});</script>',
   ];
   let _ei = 0;
+  // Adsterra 8 zones rotation
+  const _ADSTERRA = [
+    '<script>atOptions={"key":"1af53edc6f21f7ca1aac26b707a9dfe6","format":"iframe","height":300,"width":160,"params":{}};\x3c/script><script src=\"https://www.highperformanceformat.com/1af53edc6f21f7ca1aac26b707a9dfe6/invoke.js\"></script>',
+    '<script>atOptions={"key":"9289233252c3d204608b748744e59eeb","format":"iframe","height":50,"width":320,"params":{}};\x3c/script><script src=\"https://www.highperformanceformat.com/9289233252c3d204608b748744e59eeb/invoke.js\"></script>',
+    '<script src=\"https://pl29650954.effectivecpmnetwork.com/45/f0/f0/45f0f0217d9b1d4c90020d41e0072759.js\"></script>',
+    '<script src=\"https://pl29650956.effectivecpmnetwork.com/ff/76/34/ff7634d987cf09fe00a2bb121e9b0759.js\"></script>',
+    '<script async data-cfasync=\"false\" src=\"https://pl29650957.effectivecpmnetwork.com/e3a3360597029776287aab752f162417/invoke.js\"></script><div id=\"container-e3a3360597029776287aab752f162417\"></div>',
+    '<script>atOptions={"key":"9f3e2abb4418d71c3c3e09109a24d27b","format":"iframe","height":60,"width":468,"params":{}};\x3c/script><script src=\"https://www.highperformanceformat.com/9f3e2abb4418d71c3c3e09109a24d27b/invoke.js\"></script>',
+    '<script>atOptions={"key":"b76e8b64701bb06eb8ba8f10895e4bb5","format":"iframe","height":250,"width":300,"params":{}};\x3c/script><script src=\"https://www.highperformanceformat.com/b76e8b64701bb06eb8ba8f10895e4bb5/invoke.js\"></script>',
+    '<script src=\"https://quge5.com/88/tag.min.js\" data-zone=\"246854\" async data-cfasync=\"false\"></script>',
+  ];
+  let _ai = 0;
   function nextAd() {
     return '<div style="margin:14px 0;text-align:center;min-height:60px">' + MONETAG_INPAGE + '</div>';
   }
   function exoAd() {
-    const html = '<script async type="application/javascript" src="https://a.magsrv.com/ad-provider.js"></script>' + _EXOZONES[_ei++ % _EXOZONES.length];
+    const html = _ADSTERRA[_ai++ % _ADSTERRA.length];
     return '<div style="margin:14px 0;text-align:center;min-height:60px">' + html + '</div>';
   }
 
@@ -335,7 +350,7 @@ ${AD_SCRIPTS}
   ${nextAd()}
   </div>
 
-  ${nextAd()}
+  ${exoAd()}
   ${nextAd()}
 
   <div class="card">
@@ -354,14 +369,14 @@ ${AD_SCRIPTS}
   <div class="card">
     <h2>📖 What is a URL Shortener?</h2>
     <p class="blog-text">A URL shortener is a web service that converts a long web address into a shorter, more manageable link. For example, a link like <span class="highlight">https://www.example.com/very/long/path/to/article?id=12345</span> can become simply <span class="highlight">snapurl.in/abc123</span>.</p>
-  ${nextAd()}
+  ${exoAd()}
     <p class="blog-text">Short links are easier to share on social media, WhatsApp, SMS, and printed materials. They also provide valuable analytics — you can track how many people clicked your link, from which country, and at what time.</p>
   ${nextAd()}
     <p class="blog-text">SnapURL goes one step further — we let you <span class="highlight">earn money</span> from every click on your shortened links!</p>
   ${nextAd()}
   </div>
 
-  ${nextAd()}
+  ${exoAd()}
   ${nextAd()}
 
   <div class="card">
@@ -550,7 +565,7 @@ ${AD_SCRIPTS}
   <div class="card">
     <h2>⏳ Why do we show ads?</h2>
     <p class="blog-text">SnapURL is a completely <span class="highlight">free service</span>. We rely on advertisements to keep this service running. By viewing ads, you help us maintain servers, pay our development team, and continue providing this free link shortening service to millions of users.</p>
-  ${nextAd()}
+  ${exoAd()}
     <p class="blog-text">Every time you view an ad page, the person who shared this link with you earns a small commission. So your patience is literally putting money in someone's pocket — maybe even your friend's!</p>
   ${nextAd()}
   </div>
@@ -560,7 +575,7 @@ ${AD_SCRIPTS}
   <div class="card">
     <h2>💰 SnapURL Earning Rates</h2>
     <p class="blog-text">Here are the current CPM rates for SnapURL publishers:</p>
-  ${nextAd()}
+  ${exoAd()}
     <table class="earning-table">
       <tr><th>Country</th><th>Rate per 1000 Clicks</th><th>Estimated Daily</th></tr>
       <tr><td>🇺🇸 USA / UK / AU</td><td style="color:#00ff94">$12.00</td><td>$2–$8</td></tr>
@@ -582,7 +597,7 @@ ${AD_SCRIPTS}
     <div class="tip-card"><p>🐦 <strong style="color:#00e5ff">Twitter/X</strong> — Tweet about trending topics and include your SnapURL link. Viral tweets can generate massive traffic in short time.</p></div>
   </div>
 
-  ${nextAd()}
+  ${exoAd()}
   ${nextAd()}
 
   <div class="card">
@@ -717,7 +732,7 @@ ${AD_SCRIPTS}
   </div>
 
   ${nextAd()}
-  ${nextAd()}
+  ${exoAd()}
 
   <div class="card">
     <h2>🌟 User Reviews — What People Say About SnapURL</h2>
@@ -757,13 +772,13 @@ ${AD_SCRIPTS}
   <div class="card">
     <h2>🚀 SnapURL vs Other URL Shorteners</h2>
     <p class="blog-text">Not all link shorteners are created equal. Here's why SnapURL stands out from the competition:</p>
-  ${nextAd()}
+  ${exoAd()}
     <p class="blog-text">✅ <span class="highlight">Higher Rates</span> — SnapURL pays some of the highest CPM rates in the industry for Indian traffic. We pass 70% of our ad revenue directly to our publishers.</p>
   ${nextAd()}
     <p class="blog-text">✅ <span class="highlight">Instant Dashboard</span> — Real-time analytics so you can track every click as it happens. Know which links are performing and optimize your strategy.</p>
   ${nextAd()}
     <p class="blog-text">✅ <span class="highlight">Fast Withdrawal</span> — Unlike other platforms that hold your money for 30–60 days, SnapURL processes withdrawals within 24–48 hours on business days.</p>
-  ${nextAd()}
+  ${exoAd()}
     <p class="blog-text">✅ <span class="highlight">No Minimum Links</span> — You can start earning from your very first link. No minimum link requirement before you can withdraw.</p>
   ${nextAd()}
     <p class="blog-text">✅ <span class="highlight">24/7 Support</span> — Our support team is available around the clock via email and Telegram to help resolve any issues quickly.</p>
@@ -880,7 +895,7 @@ ${AD_SCRIPTS}
   </div>
 
   ${nextAd()}
-  ${nextAd()}
+  ${exoAd()}
 
   <div class="card">
     <h2>✅ Verification Progress</h2>
@@ -901,13 +916,13 @@ ${AD_SCRIPTS}
     <p class="blog-text">At SnapURL, we take your privacy seriously. Here is what we <span class="highlight">never</span> do:</p>
   ${nextAd()}
     <p class="blog-text">🚫 We never sell your personal data to third parties</p>
-  ${nextAd()}
+  ${exoAd()}
     <p class="blog-text">🚫 We never store your browsing history or track you across websites</p>
   ${nextAd()}
     <p class="blog-text">🚫 We never ask for login credentials for other platforms</p>
   ${nextAd()}
     <p class="blog-text">🚫 We never inject malware or unwanted software</p>
-  ${nextAd()}
+  ${exoAd()}
     <p class="blog-text">🚫 We never redirect you to harmful or adult content sites</p>
   ${nextAd()}
     <p class="blog-text" style="margin-top:8px">We comply with GDPR, India's DPDP Act 2023, and all applicable data protection laws. Our privacy policy is available at snapurl.in/privacy</p>
@@ -1061,13 +1076,13 @@ ${AD_SCRIPTS}
   <div class="card">
     <h2>🙏 Thank You for Using SnapURL!</h2>
     <p class="blog-text">You have successfully completed all verification steps. We appreciate your patience! The advertisements you viewed help us keep this service completely free for everyone.</p>
-  ${nextAd()}
+  ${exoAd()}
     <p class="blog-text">If someone shared this link with you, they just earned a small commission from your visit. Isn't that cool? <span class="highlight">You can do the same!</span> Sign up for free and start earning money by sharing links with your friends and family.</p>
   ${nextAd()}
   </div>
 
   ${nextAd()}
-  ${nextAd()}
+  ${exoAd()}
 
   <div class="card">
     <h2>💰 Start Earning Today — It's Free!</h2>
@@ -1076,7 +1091,7 @@ ${AD_SCRIPTS}
     <p class="blog-text">🔗 Unlimited link shortening</p>
   ${nextAd()}
     <p class="blog-text">📊 Real-time click analytics dashboard</p>
-  ${nextAd()}
+  ${exoAd()}
     <p class="blog-text">💵 Earnings for every click on your links</p>
   ${nextAd()}
     <p class="blog-text">🎯 Custom link aliases (e.g. snapurl.in/yourname)</p>
