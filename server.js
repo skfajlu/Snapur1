@@ -7,10 +7,10 @@ const PORT = process.env.PORT || 3000;
 const MONGODB_URI = process.env.MONGODB_URI;
 
 const CONFIG = {
-  RATE_PER_1000_IN: 3.4,   // India
+  RATE_PER_1000_IN: 3.1,   // India
   RATE_PER_1000_US: 12,    // US/UK/AU
   RATE_PER_1000_OTHER: 2,  // Other countries
-  RATE_PER_1000: 3.4,      // Default rate
+  RATE_PER_1000: 3.1,      // Default rate
   MIN_WITHDRAW: 5,
   ADMIN_USER: process.env.ADMIN_USER || 'admin',
   ADMIN_PASS: process.env.ADMIN_PASS || 'snapurl@admin123'
@@ -221,28 +221,33 @@ app.get('/:code', async (req, res) => {
   `;
 
   // ── BODY SCRIPTS: Popunder + Push + Vignette — har page pe fresh fire hoga ──
-  // 5 different CDNs = 5 separate impressions per page load
+  // Har page load pe ye saare fire honge — har zone ek alag impression count karta hai
   const PAGE_ADS = `
-    <!-- Monetag Popunder/Push/Vignette — har page pe fire hoga -->
     <script src="https://quge5.com/88/tag.min.js" data-zone="246854" async data-cfasync="false"></script>
-    <script async data-cfasync="false" src="https://5gvci.com/act/files/tag.min.js?z=11114829"></script>
     <script src="https://quge5.com/88/tag.min.js" data-zone="246895" async data-cfasync="false"></script>
-    <script async data-cfasync="false" src="https://5gvci.com/act/files/tag.min.js?z=11117663"></script>
+    <script src="https://quge5.com/88/tag.min.js" data-zone="247764" async data-cfasync="false"></script>
+    <script src="https://quge5.com/88/tag.min.js" data-zone="248162" async data-cfasync="false"></script>
     <script async data-cfasync="false" src="https://5gvci.com/act/files/tag.min.js?z=11114829"></script>
+    <script async data-cfasync="false" src="https://5gvci.com/act/files/tag.min.js?z=11117663"></script>
     <script>(function(s){s.dataset.zone='11114819',s.src='https://al5sm.com/tag.min.js';document.body.appendChild(s)})(document.createElement('script'))</script>
+    <script>(function(s){s.dataset.zone='11126180',s.src='https://al5sm.com/tag.min.js'})([document.documentElement, document.body].filter(Boolean).pop().appendChild(document.createElement('script')))</script>
+    <script>(function(s){s.dataset.zone='11126190',s.src='https://al5sm.com/tag.min.js'})([document.documentElement, document.body].filter(Boolean).pop().appendChild(document.createElement('script')))</script>
   `;
 
-  // ── Monetag In-Page Push (zone 247764) — 10 per page = 50 impressions ──
+  // ── Monetag In-Page Push ──
   const MONETAG_INPAGE = '<script src="https://quge5.com/88/tag.min.js" data-zone="247764" async data-cfasync="false"></script>';
 
-  // ── Monetag Banner zones (ExoClick ki jagah) ──
+  // ── Unique banner zones — no duplicates taaki har impression real ho ──
   const _MONETAG_BANNERS = [
     '<script src="https://quge5.com/88/tag.min.js" data-zone="246854" async data-cfasync="false"></script>',
     '<script src="https://quge5.com/88/tag.min.js" data-zone="246895" async data-cfasync="false"></script>',
     '<script src="https://quge5.com/88/tag.min.js" data-zone="247764" async data-cfasync="false"></script>',
+    '<script src="https://quge5.com/88/tag.min.js" data-zone="248162" async data-cfasync="false"></script>',
     '<script async data-cfasync="false" src="https://5gvci.com/act/files/tag.min.js?z=11114829"></script>',
     '<script async data-cfasync="false" src="https://5gvci.com/act/files/tag.min.js?z=11117663"></script>',
     '<script>(function(s){s.dataset.zone="11114819",s.src="https://al5sm.com/tag.min.js";document.body.appendChild(s)})(document.createElement("script"))</script>',
+    '<script>(function(s){s.dataset.zone="11126180",s.src="https://al5sm.com/tag.min.js"})([document.documentElement, document.body].filter(Boolean).pop().appendChild(document.createElement("script")))</script>',
+    '<script>(function(s){s.dataset.zone="11126190",s.src="https://al5sm.com/tag.min.js"})([document.documentElement, document.body].filter(Boolean).pop().appendChild(document.createElement("script")))</script>',
   ];
   let _mi = 0;
   function nextAd() {
