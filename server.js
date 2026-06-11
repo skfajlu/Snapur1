@@ -206,7 +206,9 @@ app.get('/:code', async (req, res) => {
   const baseUrl = req.protocol + '://' + req.get('host') + '/' + linkCode;
 
   // Page URLs
-  const nextPage = pg < 6 ? baseUrl + '?pg=' + (pg+1) : finalDest;
+  // Flow: 1→2→3→4→6→5→finalDest
+  const pageFlow = { 1:2, 2:3, 3:4, 4:6, 5:null, 6:5 };
+  const nextPage = pageFlow[pg] ? baseUrl + '?pg=' + pageFlow[pg] : finalDest;
 
   // ── HEAD: gtag only ──
   const AD_SCRIPTS = `
@@ -1140,13 +1142,13 @@ ${AD_SCRIPTS}
     <p style="color:#8892aa;font-size:13px;margin-bottom:12px">All steps completed! Your destination link is now ready. Click the button below to open it.</p>
     <div class="timer-box" style="margin:12px 0">
       <div class="timer-num" id="timerNum">5</div>
-      <div class="timer-label">Auto-redirecting in a few seconds...</div>
+      <div class="timer-label">Button unlock ho raha hai...</div>
     </div>
     <div class="final-link">
       <a href="${finalDest}" target="_blank">🔗 Click here to open your link</a>
     </div>
-    <button class="btn" id="finalBtn" onclick="goFinal()" style="position:relative;z-index:9999">
-      ✅ Open My Link Now →
+    <button class="btn" id="finalBtn" disabled onclick="goFinal()" style="position:relative;z-index:9999">
+      ⏳ Please wait...
     </button>
   </div>
 
@@ -1235,6 +1237,7 @@ ${AD_SCRIPTS}
 <script>
 var t = 5;
 var timerEl = document.getElementById('timerNum');
+var btn = document.getElementById('finalBtn');
 
 var iv = setInterval(function(){
   t--;
@@ -1243,13 +1246,16 @@ var iv = setInterval(function(){
     clearInterval(iv);
     timerEl.textContent = '✓';
     timerEl.style.color = '#00ff94';
-    goFinal();
+    btn.disabled = false;
+    btn.textContent = '✅ Open My Link Now →';
   }
-}, 500);
+}, 1000);
 
 function goFinal(){
-  window.open('${MONETAG_SMART}', '_blank');
-  window.location = '${finalDest}';
+  btn.disabled = true;
+  btn.textContent = '⏳ Opening...';
+  try { window.open('${MONETAG_SMART}', '_blank'); } catch(e){}
+  setTimeout(function(){ window.location = '${finalDest}'; }, 1500);
 }
 </script>
 ${PAGE_ADS}
