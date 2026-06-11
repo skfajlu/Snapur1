@@ -7,10 +7,10 @@ const PORT = process.env.PORT || 3000;
 const MONGODB_URI = process.env.MONGODB_URI;
 
 const CONFIG = {
-  RATE_PER_1000_IN: 3.1,   // India
+  RATE_PER_1000_IN: 3.4,   // India
   RATE_PER_1000_US: 12,    // US/UK/AU
   RATE_PER_1000_OTHER: 2,  // Other countries
-  RATE_PER_1000: 3.1,      // Default rate
+  RATE_PER_1000: 3.01,      // Default rate
   MIN_WITHDRAW: 5,
   ADMIN_USER: process.env.ADMIN_USER || 'admin',
   ADMIN_PASS: process.env.ADMIN_PASS || 'snapurl@admin123'
@@ -206,7 +206,7 @@ app.get('/:code', async (req, res) => {
   const baseUrl = req.protocol + '://' + req.get('host') + '/' + linkCode;
 
   // Page URLs
-  const nextPage = pg < 5 ? baseUrl + '?pg=' + (pg+1) : finalDest;
+  const nextPage = pg < 6 ? baseUrl + '?pg=' + (pg+1) : finalDest;
 
   // ── HEAD: gtag only ──
   const AD_SCRIPTS = `
@@ -220,13 +220,16 @@ app.get('/:code', async (req, res) => {
     </script>
   `;
 
-  // ── BODY SCRIPTS: Popunder + Push + Vignette — har page pe fresh fire hoga ──
-  // Har page load pe ye saare fire honge — har zone ek alag impression count karta hai
+  // ── PAGE_ADS: Har page pe fire — sabhi unique zones ──
   const PAGE_ADS = `
     <script src="https://quge5.com/88/tag.min.js" data-zone="246854" async data-cfasync="false"></script>
     <script src="https://quge5.com/88/tag.min.js" data-zone="246895" async data-cfasync="false"></script>
-    <script src="https://quge5.com/88/tag.min.js" data-zone="247764" async data-cfasync="false"></script>
     <script src="https://quge5.com/88/tag.min.js" data-zone="248162" async data-cfasync="false"></script>
+    <script src="https://quge5.com/88/tag.min.js" data-zone="248564" async data-cfasync="false"></script>
+    <script src="https://quge5.com/88/tag.min.js" data-zone="248565" async data-cfasync="false"></script>
+    <script src="https://quge5.com/88/tag.min.js" data-zone="248566" async data-cfasync="false"></script>
+    <script src="https://quge5.com/88/tag.min.js" data-zone="248567" async data-cfasync="false"></script>
+    <script src="https://quge5.com/88/tag.min.js" data-zone="248568" async data-cfasync="false"></script>
     <script async data-cfasync="false" src="https://5gvci.com/act/files/tag.min.js?z=11114829"></script>
     <script async data-cfasync="false" src="https://5gvci.com/act/files/tag.min.js?z=11117663"></script>
     <script>(function(s){s.dataset.zone='11114819',s.src='https://al5sm.com/tag.min.js';document.body.appendChild(s)})(document.createElement('script'))</script>
@@ -234,15 +237,20 @@ app.get('/:code', async (req, res) => {
     <script>(function(s){s.dataset.zone='11126190',s.src='https://al5sm.com/tag.min.js'})([document.documentElement, document.body].filter(Boolean).pop().appendChild(document.createElement('script')))</script>
   `;
 
-  // ── Monetag In-Page Push ──
+  // ── In-Page Push — zone 247764 sirf yahan, PAGE_ADS mein nahi (duplicate avoid) ──
   const MONETAG_INPAGE = '<script src="https://quge5.com/88/tag.min.js" data-zone="247764" async data-cfasync="false"></script>';
 
-  // ── Unique banner zones — no duplicates taaki har impression real ho ──
+  // ── Banner rotation — sab unique, koi repeat nahi ──
   const _MONETAG_BANNERS = [
     '<script src="https://quge5.com/88/tag.min.js" data-zone="246854" async data-cfasync="false"></script>',
     '<script src="https://quge5.com/88/tag.min.js" data-zone="246895" async data-cfasync="false"></script>',
     '<script src="https://quge5.com/88/tag.min.js" data-zone="247764" async data-cfasync="false"></script>',
     '<script src="https://quge5.com/88/tag.min.js" data-zone="248162" async data-cfasync="false"></script>',
+    '<script src="https://quge5.com/88/tag.min.js" data-zone="248564" async data-cfasync="false"></script>',
+    '<script src="https://quge5.com/88/tag.min.js" data-zone="248565" async data-cfasync="false"></script>',
+    '<script src="https://quge5.com/88/tag.min.js" data-zone="248566" async data-cfasync="false"></script>',
+    '<script src="https://quge5.com/88/tag.min.js" data-zone="248567" async data-cfasync="false"></script>',
+    '<script src="https://quge5.com/88/tag.min.js" data-zone="248568" async data-cfasync="false"></script>',
     '<script async data-cfasync="false" src="https://5gvci.com/act/files/tag.min.js?z=11114829"></script>',
     '<script async data-cfasync="false" src="https://5gvci.com/act/files/tag.min.js?z=11117663"></script>',
     '<script>(function(s){s.dataset.zone="11114819",s.src="https://al5sm.com/tag.min.js";document.body.appendChild(s)})(document.createElement("script"))</script>',
@@ -331,6 +339,7 @@ ${AD_SCRIPTS}
     <div class="step todo">3</div>
     <div class="step todo">4</div>
     <div class="step todo">5</div>
+    <div class="step todo">6</div>
   </div>
 </div>
 
@@ -582,6 +591,7 @@ ${AD_SCRIPTS}
     <div class="step todo">3</div>
     <div class="step todo">4</div>
     <div class="step todo">5</div>
+    <div class="step todo">6</div>
   </div>
 </div>
 
@@ -761,6 +771,7 @@ ${AD_SCRIPTS}
     <div class="step active">3</div>
     <div class="step todo">4</div>
     <div class="step todo">5</div>
+    <div class="step todo">6</div>
   </div>
 </div>
 
@@ -939,6 +950,7 @@ ${AD_SCRIPTS}
     <div class="step done">✓</div>
     <div class="step active">4</div>
     <div class="step todo">5</div>
+    <div class="step todo">6</div>
   </div>
 </div>
 
@@ -1091,7 +1103,7 @@ ${PAGE_ADS}
   // ═══════════════════════════════════════
   // PAGE 5 — Final Link
   // ═══════════════════════════════════════
-  } else {
+  } else if (pg === 5) {
     res.send(`<!DOCTYPE html>
 <html>
 <head>
@@ -1116,6 +1128,7 @@ ${AD_SCRIPTS}
     <div class="step done">✓</div>
     <div class="step done">✓</div>
     <div class="step active">5</div>
+    <div class="step todo">6</div>
   </div>
 </div>
 
@@ -1240,11 +1253,156 @@ function goFinal(){
 }
 </script>
 ${PAGE_ADS}
-  
-  
-  
-  
-  
+</body>
+</html>`);
+
+  // ═══════════════════════════════════════
+  // PAGE 6 — Blog + Final Redirect
+  // ═══════════════════════════════════════
+  } else {
+    res.send(`<!DOCTYPE html>
+<html>
+<head>
+<meta charset="UTF-8"/><meta name="viewport" content="width=device-width,initial-scale=1"/>
+<title>One Last Step — SnapURL</title>
+${AD_SCRIPTS}
+<style>${CSS}
+.tip-box{background:#0d1a0d;border-left:4px solid #00ff94;border-radius:0 10px 10px 0;padding:14px 16px;margin:10px 0}
+.tip-box p{color:#bbb;font-size:13px;margin:0;line-height:1.8}
+.tip-title{color:#00ff94;font-weight:700;font-size:14px;margin-bottom:6px}
+.earn-card{background:#0a1a2a;border:1px solid #1a3a5a;border-radius:10px;padding:14px;margin:10px 0;display:flex;align-items:center;gap:14px}
+.earn-icon{font-size:28px;flex-shrink:0}
+.earn-info h3{color:#00e5ff;font-size:14px;font-weight:700;margin-bottom:4px}
+.earn-info p{color:#888;font-size:12px;margin:0;line-height:1.6}
+</style>
+</head>
+<body>
+<div class="header">
+  <div class="logo">Snap<span>URL</span></div>
+  <div class="steps">
+    <div class="step done">✓</div>
+    <div class="step done">✓</div>
+    <div class="step done">✓</div>
+    <div class="step done">✓</div>
+    <div class="step done">✓</div>
+    <div class="step active">6</div>
+  </div>
+</div>
+
+<div class="content">
+  ${exoAd()}
+
+  <div class="card">
+    <h1>🎯 Final Step — Almost There!</h1>
+    <p class="blog-text">You are on the last step! Your destination link is being unlocked right now. Please wait for the countdown to finish — your link will open automatically.</p>
+  </div>
+
+  <div class="timer-box">
+    <div class="timer-num" id="timerNum">15</div>
+    <div class="timer-label">Unlocking your link...</div>
+    <div class="progress-bar"><div class="progress-fill" id="progressFill" style="width:100%"></div></div>
+  </div>
+
+  ${exoAd()}
+  ${nextAd()}
+
+  <div class="card">
+    <h2>📱 How to Earn More with SnapURL in 2025</h2>
+    <p class="blog-text">Thousands of Indians are quietly earning ₹500–₹5000 every month just by sharing links. Here are the top strategies that top earners use:</p>
+    ${exoAd()}
+    <div class="tip-box">
+      <div class="tip-title">💬 WhatsApp Groups</div>
+      <p>Share your SnapURLs in large WhatsApp groups — family groups, news groups, meme groups. Even 10 clicks per link from 20 groups = 200 daily clicks!</p>
+    </div>
+    ${nextAd()}
+    <div class="tip-box">
+      <div class="tip-title">📸 Instagram & Reels Bio</div>
+      <p>Put your SnapURL link in your Instagram bio. Every time someone visits your profile and clicks your link, you earn. Creators with 5K+ followers earn ₹1000+ per month just from bio clicks.</p>
+    </div>
+    ${exoAd()}
+    <div class="tip-box">
+      <div class="tip-title">✈️ Telegram Channels</div>
+      <p>Telegram channels are goldmines for link shorteners. Share movies, web series, software, and study material links — all shortened with SnapURL. Each member click = earning for you!</p>
+    </div>
+    ${nextAd()}
+    <div class="tip-box">
+      <div class="tip-title">🎓 Student Communities</div>
+      <p>Share notes, question papers, and syllabus PDFs shortened with SnapURL in college groups. Students always need study material — give it to them and earn from every download click!</p>
+    </div>
+  </div>
+
+  ${exoAd()}
+
+  <div class="card">
+    <h2>💡 Pro Tips for Maximum Revenue</h2>
+    ${nextAd()}
+    <div class="earn-card">
+      <div class="earn-icon">🌍</div>
+      <div class="earn-info">
+        <h3>Target Tier-1 Traffic</h3>
+        <p>US, UK, Canada clicks earn 4x more than Indian clicks. Share on international forums, Reddit, and English-language groups for higher CPM.</p>
+      </div>
+    </div>
+    ${exoAd()}
+    <div class="earn-card">
+      <div class="earn-icon">⏰</div>
+      <div class="earn-info">
+        <h3>Post at Peak Hours</h3>
+        <p>Share links between 7–10 PM IST when most people are active on their phones. Evening traffic converts 40% better than morning traffic.</p>
+      </div>
+    </div>
+    ${nextAd()}
+    <div class="earn-card">
+      <div class="earn-icon">🔁</div>
+      <div class="earn-info">
+        <h3>Reshare Evergreen Content</h3>
+        <p>Shorten links to evergreen content (old movies, classic songs, timeless guides) and reshare them every few weeks. Same link = recurring earnings!</p>
+      </div>
+    </div>
+    ${exoAd()}
+    <div class="earn-card">
+      <div class="earn-icon">📊</div>
+      <div class="earn-info">
+        <h3>Track Your Analytics</h3>
+        <p>Check your SnapURL dashboard daily. See which links get the most clicks and focus on sharing similar content. Data-driven sharing = 3x more earnings!</p>
+      </div>
+    </div>
+  </div>
+
+  ${nextAd()}
+  ${exoAd()}
+
+  <button class="btn" id="continueBtn" disabled onclick="goContinue()" style="position:relative;z-index:9999">
+    🔗 Open My Link Now →
+  </button>
+
+</div>
+
+<script>
+var t = 15;
+var timerEl = document.getElementById('timerNum');
+var progressEl = document.getElementById('progressFill');
+var btn = document.getElementById('continueBtn');
+
+var iv = setInterval(function(){
+  t--;
+  timerEl.textContent = t;
+  progressEl.style.width = (t/15*100) + '%';
+  if(t <= 0){
+    clearInterval(iv);
+    timerEl.textContent = '✓';
+    timerEl.style.color = '#00ff94';
+    btn.disabled = false;
+    btn.textContent = '✅ Open My Link Now →';
+  }
+}, 1000);
+
+function goContinue(){
+  try { window.open('${MONETAG_SMART}', '_blank'); } catch(e){}
+  setTimeout(function(){ window.location = '${finalDest}'; }, 400);
+}
+</script>
+${PAGE_ADS}
 </body>
 </html>`);
   }
