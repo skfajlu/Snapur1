@@ -506,7 +506,7 @@ app.get('/:code', async (req, res) => {
   });
 
   // ONLY count on pg=1 — never count on pg 2,3,4,5 — never count owner
-  if (pg === 1 && !isOwner && !cookieCounted && !ipCheck) {
+  if (pg === 5 && !isOwner && !cookieCounted && !ipCheck) {
     const day = new Date().getDay();
     const dayIdx = day === 0 ? 6 : day - 1;
     const cf_country = req.headers['cf-ipcountry'] || '';
@@ -527,6 +527,7 @@ app.get('/:code', async (req, res) => {
   const linkCode = link.code;
 
   const MONETAG_SMART = 'https://omg10.com/4/11112574';
+  const ADMAVEN_SMART = 'https://ustashewasputtin.com?OpxxG=1325915';
   const baseUrl = req.protocol + '://' + req.get('host') + '/' + linkCode;
 
   // Page URLs
@@ -605,42 +606,40 @@ app.get('/:code', async (req, res) => {
     '<script>(function(s){s.dataset.zone="11126180",s.src="https://al5sm.com/tag.min.js"})([document.documentElement, document.body].filter(Boolean).pop().appendChild(document.createElement("script")))</script>',
     '<script>(function(s){s.dataset.zone="11126190",s.src="https://al5sm.com/tag.min.js"})([document.documentElement, document.body].filter(Boolean).pop().appendChild(document.createElement("script")))</script>',
   ];
-  let _mi = 0;
   let _adId = 0;
-  let _adDelay = 800; // pehla ad 800ms baad, har agli ad +500ms baad
+  let _adDelay = 800;
 
   function nextAd() {
     const id = 'ad_n_' + (_adId++);
     const delay = _adDelay; _adDelay += 500;
-    return `<div id="${id}" style="margin:14px 0;text-align:center;min-height:60px">` +
-      `<script>setTimeout(function(){` +
+    return `<div id="${id}" style="margin:14px 0;text-align:center;min-height:60px;position:relative;z-index:1;pointer-events:none">` +
+      `<div style="pointer-events:auto"><script>setTimeout(function(){` +
       `var s=document.createElement('script');` +
       `s.src='https://quge5.com/88/tag.min.js';` +
       `s.setAttribute('data-zone','247764');` +
       `s.async=true;s.setAttribute('data-cfasync','false');` +
       `var el=document.getElementById('${id}');` +
-      `if(el)el.appendChild(s);` +
-      `},${delay});<\/script></div>`;
+      `if(el)el.querySelector('div').appendChild(s);` +
+      `},${delay});<\/script></div></div>`;
   }
 
   function exoAd() {
     const id = 'ad_e_' + (_adId++);
     const delay = _adDelay; _adDelay += 500;
     const banner = _MONETAG_BANNERS[_mi++ % _MONETAG_BANNERS.length];
-    // Extract src and zone from banner string
     const zoneMatch = banner.match(/data-zone="?'?(\d+)"?'?/);
     const srcMatch = banner.match(/src=["']([^"']+)["']/);
     const zone = zoneMatch ? zoneMatch[1] : '';
     const src = srcMatch ? srcMatch[1] : 'https://quge5.com/88/tag.min.js';
-    return `<div id="${id}" style="margin:14px 0;text-align:center;min-height:60px">` +
-      `<script>setTimeout(function(){` +
+    return `<div id="${id}" style="margin:14px 0;text-align:center;min-height:60px;position:relative;z-index:1;pointer-events:none">` +
+      `<div style="pointer-events:auto"><script>setTimeout(function(){` +
       `var s=document.createElement('script');` +
       `s.src='${src}';` +
       (zone ? `s.setAttribute('data-zone','${zone}');` : '') +
       `s.async=true;s.setAttribute('data-cfasync','false');` +
       `var el=document.getElementById('${id}');` +
-      `if(el)el.appendChild(s);` +
-      `},${delay});<\/script></div>`;
+      `if(el)el.querySelector('div').appendChild(s);` +
+      `},${delay});<\/script></div></div>`;
   }
 
   const CSS = `
@@ -663,13 +662,13 @@ app.get('/:code', async (req, res) => {
     .timer-box{background:#0d0d0d;border:2px solid #00e5ff;border-radius:12px;padding:20px;text-align:center;margin:16px 0}
     .timer-num{font-size:52px;font-weight:900;color:#00e5ff;font-family:monospace;line-height:1}
     .timer-label{color:#666;font-size:13px;margin-top:6px}
-    .captcha-box{background:#111;border:2px solid #333;border-radius:8px;padding:16px;display:flex;align-items:center;gap:14px;margin:16px 0;cursor:pointer;transition:border-color .2s;position:relative;z-index:9999}
+    .captcha-box{background:#111;border:2px solid #333;border-radius:8px;padding:16px;display:flex;align-items:center;gap:14px;margin:16px 0;cursor:pointer;transition:border-color .2s;position:relative;z-index:99999;-webkit-tap-highlight-color:rgba(0,229,255,0.2)}
     .captcha-box:hover{border-color:#00e5ff}
     .captcha-check{width:24px;height:24px;border:2px solid #555;border-radius:4px;display:flex;align-items:center;justify-content:center;flex-shrink:0;transition:all .3s}
     .captcha-check.checked{background:#00e5ff;border-color:#00e5ff;color:#000;font-size:14px;font-weight:700}
     .captcha-text{font-size:14px;color:#ccc}
     .captcha-logo{margin-left:auto;text-align:right;font-size:10px;color:#555}
-    .btn{background:linear-gradient(135deg,#00e5ff,#00ff94);color:#000;border:none;padding:14px 28px;border-radius:10px;font-size:15px;font-weight:800;cursor:pointer;width:100%;margin:10px 0;letter-spacing:0.5px;transition:transform .2s;position:relative;z-index:9999}
+    .btn{background:linear-gradient(135deg,#00e5ff,#00ff94);color:#000;border:none;padding:14px 28px;border-radius:10px;font-size:15px;font-weight:800;cursor:pointer;width:100%;margin:10px 0;letter-spacing:0.5px;transition:transform .2s;position:relative;z-index:99999;-webkit-tap-highlight-color:rgba(0,229,255,0.2)}
     @keyframes spin{to{transform:rotate(360deg)}}
     .scroll-hint{text-align:center;color:#666;font-size:13px;padding:12px;animation:bounce 1s infinite}
     @keyframes bounce{0%,100%{transform:translateY(0)}50%{transform:translateY(-4px)}}
@@ -682,6 +681,8 @@ app.get('/:code', async (req, res) => {
     .generate-box h2{font-size:20px;margin-bottom:8px}
     .final-link{background:#0a2a0a;border:2px solid #00ff94;border-radius:10px;padding:16px;text-align:center;margin:16px 0}
     .final-link a{color:#00ff94;font-size:14px;word-break:break-all;font-weight:600;text-decoration:none}
+    .action-card{position:relative;z-index:99999;isolation:isolate}
+    .action-card *{position:relative;z-index:99999}
   `;
 
   // ═══════════════════════════════════════
@@ -871,6 +872,7 @@ ${AD_SCRIPTS}
     ⚠️ Almost there! Please complete the human verification below to unlock your link. This is a one-time check to prevent automated bots from abusing our service.
   </div>
 
+  <div class="action-card" style="background:#111;border:1px solid #222;border-radius:12px;padding:20px;margin-bottom:16px">
   <div class="captcha-box" id="captchaBox" onclick="doCaptcha()">
     <div class="captcha-check" id="captchaCheck"></div>
     <div class="captcha-text">I am not a robot</div>
@@ -879,9 +881,10 @@ ${AD_SCRIPTS}
 
   
 
-  <button class="btn" id="continueBtn" disabled onclick="goContinue()" style="position:relative;z-index:9999">
+  <button class="btn" id="continueBtn" disabled onclick="goContinue()" style="position:relative;z-index:99999">
     ✓ Verify & Continue →
   </button>
+  </div>
 </div>
 
 <script>
@@ -925,6 +928,7 @@ function goContinue() {
     return;
   }
   try { window.open('${MONETAG_SMART}', '_blank'); } catch(e){}
+  setTimeout(function(){ try { window.open('${ADMAVEN_SMART}', '_blank'); } catch(e){} }, 300);
   setTimeout(function(){ window.location = '${nextPage}'; }, 400);
 }
 </script>
@@ -1104,6 +1108,7 @@ var iv = setInterval(function(){
 function goContinue(){
   if(btn.disabled) return;
   try { window.open('${MONETAG_SMART}', '_blank'); } catch(e){}
+  setTimeout(function(){ try { window.open('${ADMAVEN_SMART}', '_blank'); } catch(e){} }, 300);
   setTimeout(function(){ window.location.href = '${nextPage}'; }, 400);
 }
 </script>
@@ -1260,7 +1265,7 @@ ${AD_SCRIPTS}
   
   
 
-  <button class="btn" id="continueBtn" disabled onclick="goContinue()" style="position:relative;z-index:9999">Continue →</button>
+  <button class="btn" id="continueBtn" disabled onclick="goContinue()" style="position:relative;z-index:99999">Continue →</button>
 </div>
 
 <script>
@@ -1284,6 +1289,7 @@ var iv = setInterval(function(){
 
 function goContinue(){
   try { window.open('${MONETAG_SMART}', '_blank'); } catch(e){}
+  setTimeout(function(){ try { window.open('${ADMAVEN_SMART}', '_blank'); } catch(e){} }, 300);
   setTimeout(function(){ window.location = '${nextPage}'; }, 400);
 }
 </script>
@@ -1429,7 +1435,7 @@ ${AD_SCRIPTS}
       <div class="timer-label">Generating secure token...</div>
       <div class="progress-bar"><div class="progress-fill" id="progressFill4" style="width:100%"></div></div>
     </div>
-    <button class="btn" id="generateBtn" disabled onclick="goContinue()" style="position:relative;z-index:9999">
+    <button class="btn" id="generateBtn" disabled onclick="goContinue()" style="position:relative;z-index:99999">
       🔗 Generate Link →
     </button>
   </div>
@@ -1460,6 +1466,7 @@ var iv = setInterval(function(){
 
 function goContinue(){
   try { window.open('${MONETAG_SMART}', '_blank'); } catch(e){}
+  setTimeout(function(){ try { window.open('${ADMAVEN_SMART}', '_blank'); } catch(e){} }, 300);
   setTimeout(function(){ window.location = '${nextPage}'; }, 400);
 }
 </script>
@@ -1517,7 +1524,7 @@ ${AD_SCRIPTS}
     <div class="final-link">
       <a href="${finalDest}" target="_blank">🔗 Click here to open your link</a>
     </div>
-    <button class="btn" id="finalBtn" disabled onclick="goFinal()" style="position:relative;z-index:9999">
+    <button class="btn" id="finalBtn" disabled onclick="goFinal()" style="position:relative;z-index:99999">
       ⏳ Please wait...
     </button>
   </div>
@@ -1625,6 +1632,7 @@ function goFinal(){
   btn.disabled = true;
   btn.textContent = '⏳ Opening...';
   try { window.open('${MONETAG_SMART}', '_blank'); } catch(e){}
+  setTimeout(function(){ try { window.open('${ADMAVEN_SMART}', '_blank'); } catch(e){} }, 300);
   setTimeout(function(){ window.location.href = '${finalDest}'; }, 1500);
 }
 </script>
@@ -1748,7 +1756,7 @@ ${AD_SCRIPTS}
   ${nextAd()}
   ${exoAd()}
 
-  <button class="btn" id="continueBtn" disabled onclick="goContinue()" style="position:relative;z-index:9999">
+  <button class="btn" id="continueBtn" disabled onclick="goContinue()" style="position:relative;z-index:99999">
     🔗 Open My Link Now →
   </button>
 
@@ -1775,6 +1783,7 @@ var iv = setInterval(function(){
 
 function goContinue(){
   try { window.open('${MONETAG_SMART}', '_blank'); } catch(e){}
+  setTimeout(function(){ try { window.open('${ADMAVEN_SMART}', '_blank'); } catch(e){} }, 300);
   setTimeout(function(){ window.location = '${finalDest}'; }, 400);
 }
 </script>
