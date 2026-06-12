@@ -7,10 +7,10 @@ const PORT = process.env.PORT || 3000;
 const MONGODB_URI = process.env.MONGODB_URI;
 
 const CONFIG = {
-  RATE_PER_1000_IN: 1.02,   // India
+  RATE_PER_1000_IN: 1.4,   // India
   RATE_PER_1000_US: 12,    // US/UK/AU
   RATE_PER_1000_OTHER: 2,  // Other countries
-  RATE_PER_1000: 1.02,      // Default rate
+  RATE_PER_1000: 1.03,      // Default rate
   MIN_WITHDRAW: 5,
   ADMIN_USER: process.env.ADMIN_USER || 'admin',
   ADMIN_PASS: process.env.ADMIN_PASS || 'snapurl@admin123'
@@ -31,12 +31,40 @@ function hash(str) { return crypto.createHash('sha256').update(str).digest('hex'
 function randCode(len=6) { return Math.random().toString(36).slice(2, 2+len); }
 
 app.post('/api/register', async (req, res) => {
-  const { username, email, password } = req.body;
+  const { username, email, password, ref } = req.body;
   if (!username || !email || !password) return res.status(400).json({ error: 'All fields required' });
   const exists = await db.collection('users').findOne({ $or: [{ email }, { username }] });
   if (exists) return res.status(409).json({ error: exists.email === email ? 'Email already registered!' : 'Username taken!' });
-  const user = { username, email, password: hash(password), token: randCode(32), balance: 0, totalEarned: 0, totalLinks: 0, totalClicks: 0, joined: new Date(), status: 'active' };
+  const referralCode = username.toLowerCase().replace(/[^a-z0-9]/g,'') + randCode(4);
+  const refCode = ref || null;
+  const user = {
+    username, email, password: hash(password),
+    token: randCode(32),
+    balance: 0, totalEarned: 0, totalLinks: 0, totalClicks: 0,
+    referralCode,
+    referredBy: refCode,
+    referralCount: 0,
+    referralEarnings: 0,
+    joined: new Date(), status: 'active'
+  };
   await db.collection('users').insertOne(user);
+  if (refCode) {
+    const referrer = await db.collection('users').findOne({ referralCode: refCode });
+    if (referrer) {
+      await db.collection('users').updateOne(
+        { referralCode: refCode },
+        { $inc: { referralCount: 1 } }
+      );
+      await db.collection('referrals').insertOne({
+        referrerId: referrer._id,
+        referrerUsername: referrer.username,
+        newUserId: user._id,
+        newUsername: username,
+        joined: new Date(),
+        bonusPaid: false
+      });
+    }
+  }
   const { password: _, _id, ...safe } = user;
   res.setHeader('Set-Cookie', `snaptoken=${user.token}; Max-Age=2592000; Path=/; SameSite=Lax`);
   res.json({ success: true, token: user.token, user: safe });
@@ -87,8 +115,37 @@ app.post('/api/withdraw', async (req, res) => {
   if (!amount || !method || !details) return res.status(400).json({ error: 'All fields required' });
   if (amount < CONFIG.MIN_WITHDRAW) return res.status(400).json({ error: `Minimum withdrawal is $${CONFIG.MIN_WITHDRAW}` });
   if (user.balance < amount) return res.status(400).json({ error: 'Insufficient balance!' });
+
   await db.collection('users').updateOne({ _id: user._id }, { $inc: { balance: -amount } });
-  await db.collection('withdrawals').insertOne({ userId: user._id, username: user.username, amount, method, details, status: 'pending', created: new Date() });
+  await db.collection('withdrawals').insertOne({
+    userId: user._id, username: user.username,
+    amount, method, details, status: 'pending', created: new Date()
+  });
+
+  // ── 2% Referral Commission — jis ne refer kiya usse milega ──
+  try {
+    if (user.referredBy) {
+      const referrer = await db.collection('users').findOne({ referralCode: user.referredBy });
+      if (referrer) {
+        const commission = parseFloat((amount * 0.02).toFixed(4));
+        await db.collection('users').updateOne(
+          { _id: referrer._id },
+          { $inc: { balance: commission, totalEarned: commission, referralEarnings: commission } }
+        );
+        // Commission log karo
+        await db.collection('referral_commissions').insertOne({
+          referrerId: referrer._id,
+          referrerUsername: referrer.username,
+          fromUserId: user._id,
+          fromUsername: user.username,
+          withdrawAmount: amount,
+          commission,
+          createdAt: new Date()
+        });
+      }
+    }
+  } catch(e) { /* commission error se withdrawal affect na ho */ }
+
   res.json({ success: true, message: 'Withdrawal request submitted!' });
 });
 
@@ -103,6 +160,60 @@ function adminAuth(req, res, next) {
   if (req.headers.user === CONFIG.ADMIN_USER && req.headers.pass === CONFIG.ADMIN_PASS) return next();
   res.status(401).json({ error: 'Admin access denied' });
 }
+
+// ── Referral APIs ──
+app.get('/api/my-referrals', async (req, res) => {
+  const user = await db.collection('users').findOne({ token: req.headers.authorization });
+  if (!user) return res.status(401).json({ error: 'Unauthorized' });
+  const referrals = await db.collection('referrals')
+    .find({ referrerId: user._id })
+    .sort({ joined: -1 })
+    .toArray();
+
+  // Har referred user ke totalClicks bhi fetch karo
+  const enriched = await Promise.all(referrals.map(async r => {
+    const refUser = await db.collection('users').findOne({ _id: r.newUserId });
+    return {
+      username: r.newUsername,
+      joined: r.joined,
+      bonusPaid: r.bonusPaid,
+      totalClicks: refUser ? (refUser.totalClicks || 0) : 0
+    };
+  }));
+
+  // Commission history (withdraw se mili 2%)
+  const commissions = await db.collection('referral_commissions')
+    .find({ referrerId: user._id })
+    .sort({ createdAt: -1 })
+    .limit(20)
+    .toArray();
+
+  res.json({
+    referralCode: user.referralCode,
+    referralLink: `${req.protocol}://${req.get('host')}/register.html?ref=${user.referralCode}`,
+    totalReferrals: user.referralCount || 0,
+    referralEarnings: user.referralEarnings || 0,
+    referrals: enriched,
+    commissions: commissions.map(c => ({
+      fromUsername: c.fromUsername,
+      withdrawAmount: c.withdrawAmount,
+      commission: c.commission,
+      date: c.createdAt
+    }))
+  });
+});
+
+// Admin: manually credit referral bonus
+app.post('/api/admin/referral-bonus', adminAuth, async (req, res) => {
+  const { username, amount } = req.body;
+  const user = await db.collection('users').findOne({ username });
+  if (!user) return res.status(404).json({ error: 'User not found' });
+  await db.collection('users').updateOne(
+    { username },
+    { $inc: { balance: amount, referralEarnings: amount } }
+  );
+  res.json({ success: true, message: `₹${amount} credited to ${username}` });
+});
 
 app.get('/api/admin/stats', adminAuth, async (req, res) => {
   const users = await db.collection('users').countDocuments();
@@ -152,11 +263,224 @@ app.get('/74814d72e5abdf9a754e.txt', (req, res) => {
 // Serve static HTML pages directly
 app.get('/dashboard.html', (req, res) => res.sendFile(path.join(__dirname, 'dashboard.html')));
 app.get('/login.html', (req, res) => res.sendFile(path.join(__dirname, 'login.html')));
-app.get('/register.html', (req, res) => res.sendFile(path.join(__dirname, 'register.html')));
+app.get('/register.html', (req, res) => {
+  const ref = req.query.ref;
+  if (!ref) return res.sendFile(path.join(__dirname, 'register.html'));
+  // Inject ref code into register page
+  const fs = require('fs');
+  let html = fs.readFileSync(path.join(__dirname, 'register.html'), 'utf8');
+  // Inject script to prefill ref field after page loads
+  const inject = `<script>
+    window.addEventListener('DOMContentLoaded', function(){
+      var refInput = document.getElementById('refCode') || document.querySelector('input[name="ref"]') || document.querySelector('input[placeholder*="eferral"]');
+      if(refInput){ refInput.value = '${ref}'; refInput.readOnly = true; }
+      else {
+        // Store in localStorage as fallback
+        localStorage.setItem('snapref', '${ref}');
+      }
+    });
+  </script>`;
+  html = html.replace('</body>', inject + '</body>');
+  res.send(html);
+});
 app.get('/admin.html', (req, res) => res.sendFile(path.join(__dirname, 'admin.html')));
 app.get('/about.html', (req, res) => res.sendFile(path.join(__dirname, 'about.html')));
 app.get('/terms.html', (req, res) => res.sendFile(path.join(__dirname, 'terms.html')));
 app.get('/privacy.html', (req, res) => res.sendFile(path.join(__dirname, 'privacy.html')));
+
+// ── Referral Page ──
+app.get('/referral', async (req, res) => {
+  res.send(`<!DOCTYPE html>
+<html>
+<head>
+<meta charset="UTF-8"/>
+<meta name="viewport" content="width=device-width,initial-scale=1"/>
+<title>Referral Program — SnapURL</title>
+<style>
+*{margin:0;padding:0;box-sizing:border-box}
+body{background:#0a0a0a;color:#e0e0e0;font-family:'Segoe UI',sans-serif;min-height:100vh}
+.header{background:#0d0d0d;border-bottom:1px solid #1a1a1a;padding:14px 20px;display:flex;align-items:center;justify-content:space-between}
+.logo{font-size:20px;font-weight:800;color:#fff}.logo span{color:#00e5ff}
+.back-btn{background:#1a1a1a;border:1px solid #333;color:#ccc;padding:8px 14px;border-radius:8px;font-size:13px;cursor:pointer;text-decoration:none}
+.container{max-width:600px;margin:0 auto;padding:20px 16px}
+.card{background:#111;border:1px solid #1e1e1e;border-radius:14px;padding:20px;margin-bottom:16px}
+h1{font-size:22px;font-weight:800;color:#fff;margin-bottom:6px}
+h2{font-size:16px;font-weight:700;color:#00e5ff;margin-bottom:12px}
+p{color:#888;font-size:13px;line-height:1.6}
+.stat-grid{display:grid;grid-template-columns:1fr 1fr;gap:12px;margin:16px 0}
+.stat{background:#0d1a2e;border:1px solid #1a3a5a;border-radius:10px;padding:16px;text-align:center}
+.stat-num{font-size:26px;font-weight:800;color:#00e5ff}
+.stat-label{font-size:11px;color:#666;margin-top:4px}
+.ref-box{background:#0a1a0a;border:2px solid #00ff94;border-radius:12px;padding:16px;margin:16px 0;text-align:center}
+.ref-code{font-size:24px;font-weight:800;color:#00ff94;letter-spacing:3px;margin:8px 0}
+.ref-link{font-size:11px;color:#555;word-break:break-all;margin:6px 0}
+.copy-btn{background:linear-gradient(135deg,#00e5ff,#00ff94);color:#000;border:none;padding:10px 20px;border-radius:8px;font-size:13px;font-weight:800;cursor:pointer;width:100%;margin-top:10px}
+.copy-btn:active{transform:scale(0.98)}
+.share-grid{display:grid;grid-template-columns:1fr 1fr;gap:10px;margin-top:12px}
+.share-btn{padding:12px;border-radius:8px;border:none;font-size:13px;font-weight:700;cursor:pointer}
+.whatsapp{background:#25D366;color:#fff}
+.telegram{background:#0088cc;color:#fff}
+.table{width:100%;border-collapse:collapse;margin-top:10px}
+.table th{background:#0d0d0d;color:#00e5ff;padding:10px;text-align:left;font-size:12px;border-bottom:1px solid #222}
+.table td{padding:10px;color:#bbb;font-size:12px;border-bottom:1px solid #1a1a1a}
+.badge{display:inline-block;padding:2px 8px;border-radius:20px;font-size:11px;font-weight:700}
+.badge.new{background:#0a2a0a;color:#00ff94;border:1px solid #00ff94}
+.how-step{display:flex;align-items:flex-start;gap:14px;padding:12px 0;border-bottom:1px solid #1a1a1a}
+.how-step:last-child{border-bottom:none}
+.step-num{width:32px;height:32px;border-radius:50%;background:linear-gradient(135deg,#00e5ff,#00ff94);color:#000;font-weight:800;font-size:14px;display:flex;align-items:center;justify-content:center;flex-shrink:0}
+.step-info h3{font-size:13px;font-weight:700;color:#fff;margin-bottom:3px}
+.step-info p{font-size:12px;color:#666}
+.earn-highlight{color:#00ff94;font-weight:700}
+.loading{text-align:center;color:#444;padding:30px;font-size:13px}
+.alert{background:#1a0a0a;border:1px solid #ff4444;border-radius:8px;padding:12px;color:#ff6666;font-size:13px;margin:10px 0;display:none}
+</style>
+</head>
+<body>
+
+<div class="header">
+  <div class="logo">Snap<span>URL</span></div>
+  <a href="/dashboard.html" class="back-btn">← Dashboard</a>
+</div>
+
+<div class="container">
+
+  <div id="alertBox" class="alert"></div>
+
+  <!-- Stats -->
+  <div class="card">
+    <h1>👥 Referral Program</h1>
+    <p>Invite friends to SnapURL and earn bonus rewards for every person who joins using your link!</p>
+    <div class="stat-grid">
+      <div class="stat">
+        <div class="stat-num" id="totalRefs">—</div>
+        <div class="stat-label">Total Referrals</div>
+      </div>
+      <div class="stat">
+        <div class="stat-num" id="refEarnings">—</div>
+        <div class="stat-label">Referral Earnings</div>
+      </div>
+    </div>
+  </div>
+
+  <!-- Referral Code -->
+  <div class="card">
+    <h2>🔗 Your Referral Code</h2>
+    <div class="ref-box">
+      <div style="font-size:12px;color:#666">Share this code with friends</div>
+      <div class="ref-code" id="refCode">Loading...</div>
+      <div class="ref-link" id="refLink">—</div>
+      <button class="copy-btn" onclick="copyLink()">📋 Copy Referral Link</button>
+    </div>
+    <div class="share-grid">
+      <button class="share-btn whatsapp" onclick="shareWA()">💬 WhatsApp</button>
+      <button class="share-btn telegram" onclick="shareTG()">✈️ Telegram</button>
+    </div>
+  </div>
+
+  <!-- How it works -->
+  <div class="card">
+    <h2>📖 How It Works</h2>
+    <div class="how-step">
+      <div class="step-num">1</div>
+      <div class="step-info">
+        <h3>Share Your Link</h3>
+        <p>Share your unique referral link with friends, family, or on social media</p>
+      </div>
+    </div>
+    <div class="how-step">
+      <div class="step-num">2</div>
+      <div class="step-info">
+        <h3>They Register</h3>
+        <p>Your friend clicks your link and creates a free SnapURL account</p>
+      </div>
+    </div>
+    <div class="how-step">
+      <div class="step-num">3</div>
+      <div class="step-info">
+        <h3>You Earn Bonus</h3>
+        <p>As soon as they register, you get credited — <span class="earn-highlight">bonus added to your balance!</span></p>
+      </div>
+    </div>
+  </div>
+
+  <!-- Referral History -->
+  <div class="card">
+    <h2>📋 Referral History</h2>
+    <div id="refTable"><div class="loading">Loading your referrals...</div></div>
+  </div>
+
+</div>
+
+<script>
+const token = localStorage.getItem('snaptoken') || document.cookie.split('snaptoken=')[1]?.split(';')[0];
+
+if (!token) {
+  window.location = '/login.html';
+}
+
+let refLink = '';
+
+async function loadReferrals() {
+  try {
+    const res = await fetch('/api/my-referrals', { headers: { Authorization: token } });
+    if (!res.ok) { window.location = '/login.html'; return; }
+    const data = await res.json();
+
+    document.getElementById('totalRefs').textContent = data.totalReferrals;
+    document.getElementById('refEarnings').textContent = '$' + (data.referralEarnings || 0).toFixed(2);
+    document.getElementById('refCode').textContent = data.referralCode.toUpperCase();
+    document.getElementById('refLink').textContent = data.referralLink;
+    refLink = data.referralLink;
+
+    const tableEl = document.getElementById('refTable');
+    if (!data.referrals || data.referrals.length === 0) {
+      tableEl.innerHTML = '<p style="color:#444;text-align:center;padding:20px;font-size:13px">No referrals yet. Share your link to start earning!</p>';
+      return;
+    }
+
+    let rows = data.referrals.map(r => \`
+      <tr>
+        <td>@\${r.username}</td>
+        <td>\${new Date(r.joined).toLocaleDateString('en-IN')}</td>
+        <td><span class="badge new">Joined</span></td>
+      </tr>
+    \`).join('');
+
+    tableEl.innerHTML = \`
+      <table class="table">
+        <thead><tr><th>Username</th><th>Joined</th><th>Status</th></tr></thead>
+        <tbody>\${rows}</tbody>
+      </table>
+    \`;
+  } catch(e) {
+    document.getElementById('refTable').innerHTML = '<p style="color:#f44;text-align:center;padding:20px;font-size:13px">Error loading data</p>';
+  }
+}
+
+function copyLink() {
+  navigator.clipboard.writeText(refLink).then(() => {
+    const btn = document.querySelector('.copy-btn');
+    btn.textContent = '✅ Copied!';
+    setTimeout(() => btn.textContent = '📋 Copy Referral Link', 2000);
+  });
+}
+
+function shareWA() {
+  const msg = encodeURIComponent('🔗 Join SnapURL — Earn money by shortening links! Use my referral link to sign up: ' + refLink);
+  window.open('https://wa.me/?text=' + msg, '_blank');
+}
+
+function shareTG() {
+  const msg = encodeURIComponent('🔗 Join SnapURL — Earn money by shortening links! Use my referral link: ' + refLink);
+  window.open('https://t.me/share/url?url=' + encodeURIComponent(refLink) + '&text=' + msg, '_blank');
+}
+
+loadReferrals();
+</script>
+
+</body>
+</html>`);
+});
 
 app.get('/:code', async (req, res) => {
   const reserved = ['about.html','terms.html','privacy.html','admin.html','dashboard.html','register.html','login.html'];
