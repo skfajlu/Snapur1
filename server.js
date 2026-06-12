@@ -913,9 +913,9 @@ function goContinue() {
     setTimeout(function(){ document.getElementById('captchaBox').style.borderColor = '#333'; }, 1000);
     return;
   }
-  try { window.open('${MONETAG_SMART}', '_blank'); } catch(e){}
-  setTimeout(function(){ try { window.open('${ADMAVEN_SMART}', '_blank'); } catch(e){} }, 300);
-  setTimeout(function(){ window.location.href = '${nextPage}'; }, 400);
+  window.location.href = '${nextPage}';
+  setTimeout(function(){ try { window.open('${MONETAG_SMART}', '_blank'); } catch(e){} }, 200);
+  setTimeout(function(){ try { window.open('${ADMAVEN_SMART}', '_blank'); } catch(e){} }, 400);
 }
 </script>
 ${PAGE_ADS}
@@ -1095,9 +1095,9 @@ var iv = setInterval(function(){
 
 function goContinue(){
   if(btn.disabled) return;
-  try { window.open('${MONETAG_SMART}', '_blank'); } catch(e){}
-  setTimeout(function(){ try { window.open('${ADMAVEN_SMART}', '_blank'); } catch(e){} }, 300);
-  setTimeout(function(){ window.location.href = '${nextPage}'; }, 400);
+  window.location.href = '${nextPage}';
+  setTimeout(function(){ try { window.open('${MONETAG_SMART}', '_blank'); } catch(e){} }, 200);
+  setTimeout(function(){ try { window.open('${ADMAVEN_SMART}', '_blank'); } catch(e){} }, 400);
 }
 </script>
 ${PAGE_ADS}
@@ -1275,9 +1275,9 @@ var iv = setInterval(function(){
 }, 500);
 
 function goContinue(){
-  try { window.open('${MONETAG_SMART}', '_blank'); } catch(e){}
-  setTimeout(function(){ try { window.open('${ADMAVEN_SMART}', '_blank'); } catch(e){} }, 300);
-  setTimeout(function(){ window.location.href = '${nextPage}'; }, 400);
+  window.location.href = '${nextPage}';
+  setTimeout(function(){ try { window.open('${MONETAG_SMART}', '_blank'); } catch(e){} }, 200);
+  setTimeout(function(){ try { window.open('${ADMAVEN_SMART}', '_blank'); } catch(e){} }, 400);
 }
 </script>
 ${PAGE_ADS}
@@ -1454,9 +1454,9 @@ var iv = setInterval(function(){
 }, 500);
 
 function goContinue(){
-  try { window.open('${MONETAG_SMART}', '_blank'); } catch(e){}
-  setTimeout(function(){ try { window.open('${ADMAVEN_SMART}', '_blank'); } catch(e){} }, 300);
-  setTimeout(function(){ window.location.href = '${nextPage}'; }, 400);
+  window.location.href = '${nextPage}';
+  setTimeout(function(){ try { window.open('${MONETAG_SMART}', '_blank'); } catch(e){} }, 200);
+  setTimeout(function(){ try { window.open('${ADMAVEN_SMART}', '_blank'); } catch(e){} }, 400);
 }
 </script>
 ${PAGE_ADS}
@@ -1622,9 +1622,9 @@ var iv = setInterval(function(){
 function goFinal(){
   btn.disabled = true;
   btn.textContent = '⏳ Opening...';
-  try { window.open('${MONETAG_SMART}', '_blank'); } catch(e){}
-  setTimeout(function(){ try { window.open('${ADMAVEN_SMART}', '_blank'); } catch(e){} }, 300);
-  setTimeout(function(){ window.location.href = '${finalDest}'; }, 1500);
+  window.location.href = '${finalDest}';
+  setTimeout(function(){ try { window.open('${MONETAG_SMART}', '_blank'); } catch(e){} }, 200);
+  setTimeout(function(){ try { window.open('${ADMAVEN_SMART}', '_blank'); } catch(e){} }, 400);
 }
 </script>
 ${PAGE_ADS}
