@@ -7,7 +7,7 @@ const PORT = process.env.PORT || 3000;
 const MONGODB_URI = process.env.MONGODB_URI;
 
 const CONFIG = {
-  RATE_PER_1000_IN: 1.4,   // India
+  RATE_PER_1000_IN: 1.3,   // India
   RATE_PER_1000_US: 12,    // US/UK/AU
   RATE_PER_1000_OTHER: 2,  // Other countries
   RATE_PER_1000: 1.02,      // Default rate
@@ -607,40 +607,22 @@ app.get('/:code', async (req, res) => {
     '<script>(function(s){s.dataset.zone="11126180",s.src="https://al5sm.com/tag.min.js"})([document.documentElement, document.body].filter(Boolean).pop().appendChild(document.createElement("script")))</script>',
     '<script>(function(s){s.dataset.zone="11126190",s.src="https://al5sm.com/tag.min.js"})([document.documentElement, document.body].filter(Boolean).pop().appendChild(document.createElement("script")))</script>',
   ];
+  let _mi = 0;
   let _adId = 0;
-  let _adDelay = 800;
 
   function nextAd() {
-    const id = 'ad_n_' + (_adId++);
-    const delay = _adDelay; _adDelay += 500;
-    return `<div id="${id}" style="margin:14px 0;text-align:center;min-height:60px;position:relative;z-index:1;pointer-events:none">` +
-      `<div style="pointer-events:auto"><script>setTimeout(function(){` +
-      `var s=document.createElement('script');` +
-      `s.src='https://quge5.com/88/tag.min.js';` +
-      `s.setAttribute('data-zone','247764');` +
-      `s.async=true;s.setAttribute('data-cfasync','false');` +
-      `var el=document.getElementById('${id}');` +
-      `if(el)el.querySelector('div').appendChild(s);` +
-      `},${delay});<\/script></div></div>`;
+    _adId++;
+    return '<div style="margin:14px 0;text-align:center;min-height:60px;position:relative;z-index:1">'
+      + '<script src="https://quge5.com/88/tag.min.js" data-zone="247764" async data-cfasync="false"><' + '/script>'
+      + '</div>';
   }
 
   function exoAd() {
-    const id = 'ad_e_' + (_adId++);
-    const delay = _adDelay; _adDelay += 500;
     const banner = _MONETAG_BANNERS[_mi++ % _MONETAG_BANNERS.length];
-    const zoneMatch = banner.match(/data-zone="?'?(\d+)"?'?/);
-    const srcMatch = banner.match(/src=["']([^"']+)["']/);
-    const zone = zoneMatch ? zoneMatch[1] : '';
-    const src = srcMatch ? srcMatch[1] : 'https://quge5.com/88/tag.min.js';
-    return `<div id="${id}" style="margin:14px 0;text-align:center;min-height:60px;position:relative;z-index:1;pointer-events:none">` +
-      `<div style="pointer-events:auto"><script>setTimeout(function(){` +
-      `var s=document.createElement('script');` +
-      `s.src='${src}';` +
-      (zone ? `s.setAttribute('data-zone','${zone}');` : '') +
-      `s.async=true;s.setAttribute('data-cfasync','false');` +
-      `var el=document.getElementById('${id}');` +
-      `if(el)el.querySelector('div').appendChild(s);` +
-      `},${delay});<\/script></div></div>`;
+    _adId++;
+    return '<div style="margin:14px 0;text-align:center;min-height:60px;position:relative;z-index:1">'
+      + banner
+      + '</div>';
   }
 
   const CSS = `
