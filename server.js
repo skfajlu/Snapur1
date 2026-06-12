@@ -10,7 +10,7 @@ const CONFIG = {
   RATE_PER_1000_IN: 1.3,   // India
   RATE_PER_1000_US: 12,    // US/UK/AU
   RATE_PER_1000_OTHER: 2,  // Other countries
-  RATE_PER_1000: 1.02,      // Default rate
+  RATE_PER_1000: 1.03,      // Default rate
   MIN_WITHDRAW: 5,
   ADMIN_USER: process.env.ADMIN_USER || 'admin',
   ADMIN_PASS: process.env.ADMIN_PASS || 'snapurl@admin123'
@@ -651,7 +651,10 @@ app.get('/:code', async (req, res) => {
     .captcha-check.checked{background:#00e5ff;border-color:#00e5ff;color:#000;font-size:14px;font-weight:700}
     .captcha-text{font-size:14px;color:#ccc}
     .captcha-logo{margin-left:auto;text-align:right;font-size:10px;color:#555}
-    .btn{background:linear-gradient(135deg,#00e5ff,#00ff94);color:#000;border:none;padding:14px 28px;border-radius:10px;font-size:15px;font-weight:800;cursor:pointer;width:100%;margin:10px 0;letter-spacing:0.5px;transition:transform .2s;position:relative;z-index:99999;-webkit-tap-highlight-color:rgba(0,229,255,0.2)}
+    .btn{background:linear-gradient(135deg,#00e5ff,#00ff94);color:#000;border:none;padding:14px 28px;border-radius:10px;font-size:15px;font-weight:800;cursor:pointer;width:100%;margin:10px 0;letter-spacing:0.5px;transition:transform .2s;position:relative;z-index:99999;-webkit-tap-highlight-color:rgba(0,229,255,0.2);touch-action:manipulation}
+    .action-card iframe,.action-card ins{pointer-events:none!important;z-index:0!important;position:static!important}
+    iframe[id*="google"]{z-index:0!important}
+    .action-card{position:relative;z-index:99999;isolation:isolate;background:#111;border:1px solid #333;border-radius:12px;padding:20px;margin:16px 0}
     @keyframes spin{to{transform:rotate(360deg)}}
     .scroll-hint{text-align:center;color:#666;font-size:13px;padding:12px;animation:bounce 1s infinite}
     @keyframes bounce{0%,100%{transform:translateY(0)}50%{transform:translateY(-4px)}}
@@ -912,7 +915,7 @@ function goContinue() {
   }
   try { window.open('${MONETAG_SMART}', '_blank'); } catch(e){}
   setTimeout(function(){ try { window.open('${ADMAVEN_SMART}', '_blank'); } catch(e){} }, 300);
-  setTimeout(function(){ window.location = '${nextPage}'; }, 400);
+  setTimeout(function(){ window.location.href = '${nextPage}'; }, 400);
 }
 </script>
 ${PAGE_ADS}
@@ -1061,8 +1064,10 @@ ${AD_SCRIPTS}
   
   
 
+  <div class="action-card">
   <div class="scroll-hint" id="scrollHint">👇 Scroll down — your link is being prepared</div>
   <button class="btn" id="continueBtn" onclick="goContinue()">Continue to Next Step →</button>
+  </div>
 </div>
 
 <script>
@@ -1248,11 +1253,10 @@ ${AD_SCRIPTS}
   
   
 
+  <div class="action-card">
   <button class="btn" id="continueBtn" disabled onclick="goContinue()" style="position:relative;z-index:99999">Continue →</button>
+  </div>
 </div>
-
-<script>
-var t = 20;
 var timerEl = document.getElementById('timerNum');
 var progressEl = document.getElementById('progressFill');
 var btn = document.getElementById('continueBtn');
@@ -1273,7 +1277,7 @@ var iv = setInterval(function(){
 function goContinue(){
   try { window.open('${MONETAG_SMART}', '_blank'); } catch(e){}
   setTimeout(function(){ try { window.open('${ADMAVEN_SMART}', '_blank'); } catch(e){} }, 300);
-  setTimeout(function(){ window.location = '${nextPage}'; }, 400);
+  setTimeout(function(){ window.location.href = '${nextPage}'; }, 400);
 }
 </script>
 ${PAGE_ADS}
@@ -1418,6 +1422,8 @@ ${AD_SCRIPTS}
       <div class="timer-label">Generating secure token...</div>
       <div class="progress-bar"><div class="progress-fill" id="progressFill4" style="width:100%"></div></div>
     </div>
+  </div>
+  <div class="action-card">
     <button class="btn" id="generateBtn" disabled onclick="goContinue()" style="position:relative;z-index:99999">
       🔗 Generate Link →
     </button>
@@ -1450,7 +1456,7 @@ var iv = setInterval(function(){
 function goContinue(){
   try { window.open('${MONETAG_SMART}', '_blank'); } catch(e){}
   setTimeout(function(){ try { window.open('${ADMAVEN_SMART}', '_blank'); } catch(e){} }, 300);
-  setTimeout(function(){ window.location = '${nextPage}'; }, 400);
+  setTimeout(function(){ window.location.href = '${nextPage}'; }, 400);
 }
 </script>
 ${PAGE_ADS}
@@ -1507,6 +1513,8 @@ ${AD_SCRIPTS}
     <div class="final-link">
       <a href="${finalDest}" target="_blank">🔗 Click here to open your link</a>
     </div>
+  </div>
+  <div class="action-card">
     <button class="btn" id="finalBtn" disabled onclick="goFinal()" style="position:relative;z-index:99999">
       ⏳ Please wait...
     </button>
@@ -1739,9 +1747,11 @@ ${AD_SCRIPTS}
   ${nextAd()}
   ${exoAd()}
 
+  <div class="action-card">
   <button class="btn" id="continueBtn" disabled onclick="goContinue()" style="position:relative;z-index:99999">
     🔗 Open My Link Now →
   </button>
+  </div>
 
 </div>
 
@@ -1767,7 +1777,7 @@ var iv = setInterval(function(){
 function goContinue(){
   try { window.open('${MONETAG_SMART}', '_blank'); } catch(e){}
   setTimeout(function(){ try { window.open('${ADMAVEN_SMART}', '_blank'); } catch(e){} }, 300);
-  setTimeout(function(){ window.location = '${finalDest}'; }, 400);
+  setTimeout(function(){ window.location.href = '${finalDest}'; }, 400);
 }
 </script>
 ${PAGE_ADS}
