@@ -483,6 +483,7 @@ loadReferrals();
 });
 
 app.get('/:code', async (req, res) => {
+  try {
   const reserved = ['about.html','terms.html','privacy.html','admin.html','dashboard.html','register.html','login.html'];
   if (reserved.includes(req.params.code)) return res.sendFile(path.join(__dirname, req.params.code));
   const link = await db.collection('links').findOne({ code: req.params.code });
@@ -1790,6 +1791,10 @@ function goContinue(){
 ${PAGE_ADS}
 </body>
 </html>`);
+  }
+  } catch(err) {
+    console.error('Route error:', err);
+    if (!res.headersSent) res.status(500).send('Something went wrong. Please try again.');
   }
 });
 
