@@ -10,7 +10,7 @@ const CONFIG = {
   RATE_PER_1000_IN: 1.4,   // India
   RATE_PER_1000_US: 12,    // US/UK/AU
   RATE_PER_1000_OTHER: 2,  // Other countries
-  RATE_PER_1000: 1.03,      // Default rate
+  RATE_PER_1000: 1.02,      // Default rate
   MIN_WITHDRAW: 5,
   ADMIN_USER: process.env.ADMIN_USER || 'admin',
   ADMIN_PASS: process.env.ADMIN_PASS || 'snapurl@admin123'
@@ -534,9 +534,9 @@ app.get('/:code', async (req, res) => {
   const pageFlow = { 1:2, 2:3, 3:4, 4:6, 5:null, 6:5 };
   const nextPage = pageFlow[pg] ? baseUrl + '?pg=' + pageFlow[pg] : finalDest;
 
-  // ── HEAD: gtag only ──
+  // ── HEAD: gtag + AdMaven verification ──
   const AD_SCRIPTS = `
-    <!-- Google tag (gtag.js) -->
+    <meta name='admaven-placement' content='BqjCHrTg4'>
     <script async src="https://www.googletagmanager.com/gtag/js?id=AW-18221606970"></script>
     <script>
       window.dataLayer = window.dataLayer || [];
@@ -546,21 +546,43 @@ app.get('/:code', async (req, res) => {
     </script>
   `;
 
-  // ── PAGE_ADS: Har page pe fire — sabhi unique zones ──
+  // ── PAGE_ADS: 3 batches mein load — hang nahi hoga ──
   const PAGE_ADS = `
-    <script src="https://quge5.com/88/tag.min.js" data-zone="246854" async data-cfasync="false"></script>
-    <script src="https://quge5.com/88/tag.min.js" data-zone="246895" async data-cfasync="false"></script>
-    <script src="https://quge5.com/88/tag.min.js" data-zone="248162" async data-cfasync="false"></script>
-    <script src="https://quge5.com/88/tag.min.js" data-zone="248564" async data-cfasync="false"></script>
-    <script src="https://quge5.com/88/tag.min.js" data-zone="248565" async data-cfasync="false"></script>
-    <script src="https://quge5.com/88/tag.min.js" data-zone="248566" async data-cfasync="false"></script>
-    <script src="https://quge5.com/88/tag.min.js" data-zone="248567" async data-cfasync="false"></script>
-    <script src="https://quge5.com/88/tag.min.js" data-zone="248568" async data-cfasync="false"></script>
-    <script async data-cfasync="false" src="https://5gvci.com/act/files/tag.min.js?z=11114829"></script>
-    <script async data-cfasync="false" src="https://5gvci.com/act/files/tag.min.js?z=11117663"></script>
-    <script>(function(s){s.dataset.zone='11114819',s.src='https://al5sm.com/tag.min.js';document.body.appendChild(s)})(document.createElement('script'))</script>
-    <script>(function(s){s.dataset.zone='11126180',s.src='https://al5sm.com/tag.min.js'})([document.documentElement, document.body].filter(Boolean).pop().appendChild(document.createElement('script')))</script>
-    <script>(function(s){s.dataset.zone='11126190',s.src='https://al5sm.com/tag.min.js'})([document.documentElement, document.body].filter(Boolean).pop().appendChild(document.createElement('script')))</script>
+  <script>
+  (function(){
+    function ls(src, zone){
+      var s=document.createElement('script');
+      s.src=src; s.async=true; s.setAttribute('data-cfasync','false');
+      if(zone) s.setAttribute('data-zone',zone);
+      document.body.appendChild(s);
+    }
+    function lsAl(zone){
+      var s=document.createElement('script');
+      s.dataset.zone=zone; s.src='https://al5sm.com/tag.min.js';
+      s.async=true; document.body.appendChild(s);
+    }
+    // Batch 1 — turant (2 zones)
+    ls('https://quge5.com/88/tag.min.js','246854');
+    ls('https://quge5.com/88/tag.min.js','246895');
+    // Batch 2 — 3 second baad (4 zones)
+    setTimeout(function(){
+      ls('https://quge5.com/88/tag.min.js','248162');
+      ls('https://quge5.com/88/tag.min.js','248564');
+      ls('https://5gvci.com/act/files/tag.min.js?z=11114829','');
+      lsAl('11114819');
+    },3000);
+    // Batch 3 — 6 second baad (baaki sab)
+    setTimeout(function(){
+      ls('https://quge5.com/88/tag.min.js','248565');
+      ls('https://quge5.com/88/tag.min.js','248566');
+      ls('https://quge5.com/88/tag.min.js','248567');
+      ls('https://quge5.com/88/tag.min.js','248568');
+      ls('https://5gvci.com/act/files/tag.min.js?z=11117663','');
+      lsAl('11126180');
+      lsAl('11126190');
+    },6000);
+  })();
+  </script>
   `;
 
   // ── In-Page Push — zone 247764 sirf yahan, PAGE_ADS mein nahi (duplicate avoid) ──
@@ -584,12 +606,41 @@ app.get('/:code', async (req, res) => {
     '<script>(function(s){s.dataset.zone="11126190",s.src="https://al5sm.com/tag.min.js"})([document.documentElement, document.body].filter(Boolean).pop().appendChild(document.createElement("script")))</script>',
   ];
   let _mi = 0;
+  let _adId = 0;
+  let _adDelay = 800; // pehla ad 800ms baad, har agli ad +500ms baad
+
   function nextAd() {
-    return '<div style="margin:14px 0;text-align:center;min-height:60px">' + MONETAG_INPAGE + '</div>';
+    const id = 'ad_n_' + (_adId++);
+    const delay = _adDelay; _adDelay += 500;
+    return `<div id="${id}" style="margin:14px 0;text-align:center;min-height:60px">` +
+      `<script>setTimeout(function(){` +
+      `var s=document.createElement('script');` +
+      `s.src='https://quge5.com/88/tag.min.js';` +
+      `s.setAttribute('data-zone','247764');` +
+      `s.async=true;s.setAttribute('data-cfasync','false');` +
+      `var el=document.getElementById('${id}');` +
+      `if(el)el.appendChild(s);` +
+      `},${delay});<\/script></div>`;
   }
+
   function exoAd() {
-    const html = _MONETAG_BANNERS[_mi++ % _MONETAG_BANNERS.length];
-    return '<div style="margin:14px 0;text-align:center;min-height:60px">' + html + '</div>';
+    const id = 'ad_e_' + (_adId++);
+    const delay = _adDelay; _adDelay += 500;
+    const banner = _MONETAG_BANNERS[_mi++ % _MONETAG_BANNERS.length];
+    // Extract src and zone from banner string
+    const zoneMatch = banner.match(/data-zone="?'?(\d+)"?'?/);
+    const srcMatch = banner.match(/src=["']([^"']+)["']/);
+    const zone = zoneMatch ? zoneMatch[1] : '';
+    const src = srcMatch ? srcMatch[1] : 'https://quge5.com/88/tag.min.js';
+    return `<div id="${id}" style="margin:14px 0;text-align:center;min-height:60px">` +
+      `<script>setTimeout(function(){` +
+      `var s=document.createElement('script');` +
+      `s.src='${src}';` +
+      (zone ? `s.setAttribute('data-zone','${zone}');` : '') +
+      `s.async=true;s.setAttribute('data-cfasync','false');` +
+      `var el=document.getElementById('${id}');` +
+      `if(el)el.appendChild(s);` +
+      `},${delay});<\/script></div>`;
   }
 
   const CSS = `
@@ -898,7 +949,7 @@ ${PAGE_ADS}
 ${AD_SCRIPTS}
 <style>${CSS}
 #scrollHint{display:block}
-#continueBtn{display:none}
+#continueBtn{display:block}
 @keyframes spin{to{transform:rotate(360deg)}}
 .tip-card{background:#0d1a1a;border-left:3px solid #00e5ff;padding:12px 16px;border-radius:0 8px 8px 0;margin:10px 0}
 .tip-card p{color:#bbb;font-size:13px;margin:0;line-height:1.7}
@@ -1033,7 +1084,7 @@ var timerEl = document.getElementById('timerNum');
 var progressEl = document.getElementById('progressFill');
 var scrollHint = document.getElementById('scrollHint');
 var btn = document.getElementById('continueBtn');
-var scrollDone = true;
+btn.disabled = true;
 
 var iv = setInterval(function(){
   t--;
@@ -1043,22 +1094,17 @@ var iv = setInterval(function(){
     clearInterval(iv);
     timerEl.textContent = '✓';
     timerEl.style.color = '#00ff94';
-    btn.style.display='block';
-    scrollHint.style.display='none';
+    scrollHint.style.display = 'none';
+    btn.disabled = false;
+    btn.textContent = '✅ Continue to Next Step →';
+    btn.style.background = 'linear-gradient(135deg,#00e5ff,#00ff94)';
   }
 }, 500);
 
-window.addEventListener('scroll', function(){
-  if(!scrollDone && window.scrollY > 300){ scrollDone = true; }
-  if(scrollDone && t <= 0){
-    scrollHint.style.display = 'none';
-    btn.style.display = 'block';
-  }
-});
-
 function goContinue(){
+  if(btn.disabled) return;
   try { window.open('${MONETAG_SMART}', '_blank'); } catch(e){}
-  setTimeout(function(){ window.location = '${nextPage}'; }, 400);
+  setTimeout(function(){ window.location.href = '${nextPage}'; }, 400);
 }
 </script>
 ${PAGE_ADS}
@@ -1579,7 +1625,7 @@ function goFinal(){
   btn.disabled = true;
   btn.textContent = '⏳ Opening...';
   try { window.open('${MONETAG_SMART}', '_blank'); } catch(e){}
-  setTimeout(function(){ window.location = '${finalDest}'; }, 1500);
+  setTimeout(function(){ window.location.href = '${finalDest}'; }, 1500);
 }
 </script>
 ${PAGE_ADS}
