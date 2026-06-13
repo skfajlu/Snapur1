@@ -17,10 +17,10 @@ const mailer = nodemailer.createTransport({
 });
 
 const CONFIG = {
-  RATE_PER_1000_IN: 4.5,   // India
+  RATE_PER_1000_IN: 1.5,   // India
   RATE_PER_1000_US: 12,    // US/UK/AU
   RATE_PER_1000_OTHER: 2,  // Other countries
-  RATE_PER_1000: 4.5,      // Default rate (fix for earnings calculation)
+  RATE_PER_1000: 1.03,      // Default rate (fix for earnings calculation)
   MIN_WITHDRAW: 5,
   ADMIN_USER: process.env.ADMIN_USER || 'admin',
   ADMIN_PASS: process.env.ADMIN_PASS || 'snapurl@admin123'
