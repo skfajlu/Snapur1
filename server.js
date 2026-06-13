@@ -2,15 +2,25 @@ const express = require('express');
 const path = require('path');
 const crypto = require('crypto');
 const { MongoClient, ObjectId } = require('mongodb');
+const nodemailer = require('nodemailer');
 const app = express();
 const PORT = process.env.PORT || 3000;
 const MONGODB_URI = process.env.MONGODB_URI;
 
+// Email transporter
+const mailer = nodemailer.createTransport({
+  service: 'gmail',
+  auth: {
+    user: process.env.EMAIL_USER,
+    pass: process.env.EMAIL_PASS  // Gmail App Password
+  }
+});
+
 const CONFIG = {
-  RATE_PER_1000_IN: 1.6,   // India
+  RATE_PER_1000_IN: 4.5,   // India
   RATE_PER_1000_US: 12,    // US/UK/AU
   RATE_PER_1000_OTHER: 2,  // Other countries
-  RATE_PER_1000: 1.03,      // Default rate (fix for earnings calculation)
+  RATE_PER_1000: 4.5,      // Default rate (fix for earnings calculation)
   MIN_WITHDRAW: 5,
   ADMIN_USER: process.env.ADMIN_USER || 'admin',
   ADMIN_PASS: process.env.ADMIN_PASS || 'snapurl@admin123'
@@ -131,6 +141,67 @@ function adminAuth(req, res, next) {
   res.status(401).json({ error: 'Admin access denied' });
 }
 
+// ── Forgot Password — Step 1: OTP bhejo ──
+app.post('/api/forgot-password', async (req, res) => {
+  const { email } = req.body;
+  if (!email) return res.status(400).json({ error: 'Email required' });
+  const user = await db.collection('users').findOne({ email });
+  if (!user) return res.status(404).json({ error: 'No account found with this email!' });
+
+  const otp = Math.floor(100000 + Math.random() * 900000).toString(); // 6 digit OTP
+  const expiry = new Date(Date.now() + 15 * 60 * 1000); // 15 min expiry
+
+  await db.collection('users').updateOne(
+    { email },
+    { $set: { resetOtp: otp, resetOtpExpiry: expiry } }
+  );
+
+  try {
+    await mailer.sendMail({
+      from: `"SnapURL" <${process.env.EMAIL_USER}>`,
+      to: email,
+      subject: '🔐 SnapURL Password Reset OTP',
+      html: `
+        <div style="background:#0a0a0a;padding:40px 20px;font-family:sans-serif;max-width:480px;margin:0 auto">
+          <h2 style="color:#00e5ff;font-size:24px;margin-bottom:8px">SnapURL</h2>
+          <h3 style="color:#fff;margin-bottom:20px">Password Reset Request</h3>
+          <p style="color:#888;font-size:14px;margin-bottom:24px">Tumhara SnapURL password reset OTP:</p>
+          <div style="background:#111;border:2px solid #00e5ff;border-radius:12px;padding:24px;text-align:center;margin-bottom:24px">
+            <div style="font-size:42px;font-weight:800;color:#00ff94;letter-spacing:10px">${otp}</div>
+            <div style="color:#555;font-size:12px;margin-top:8px">Valid for 15 minutes only</div>
+          </div>
+          <p style="color:#555;font-size:12px">Agar tumne yeh request nahi ki toh is email ko ignore karo.</p>
+        </div>
+      `
+    });
+    res.json({ success: true, message: 'OTP sent to your email!' });
+  } catch(e) {
+    console.error('Email error:', e);
+    res.status(500).json({ error: 'Email send failed. Try again!' });
+  }
+});
+
+// ── Forgot Password — Step 2: OTP verify + new password ──
+app.post('/api/reset-password', async (req, res) => {
+  const { email, otp, newPassword } = req.body;
+  if (!email || !otp || !newPassword) return res.status(400).json({ error: 'All fields required' });
+  if (newPassword.length < 6) return res.status(400).json({ error: 'Password must be at least 6 characters' });
+
+  const user = await db.collection('users').findOne({ email });
+  if (!user) return res.status(404).json({ error: 'Account not found!' });
+  if (!user.resetOtp || user.resetOtp !== otp) return res.status(400).json({ error: 'Invalid OTP!' });
+  if (new Date() > new Date(user.resetOtpExpiry)) return res.status(400).json({ error: 'OTP expired! Request a new one.' });
+
+  await db.collection('users').updateOne(
+    { email },
+    {
+      $set: { password: hash(newPassword), token: randCode(32) },
+      $unset: { resetOtp: '', resetOtpExpiry: '' }
+    }
+  );
+  res.json({ success: true, message: 'Password reset successful! Please login.' });
+});
+
 // ── Referral APIs ──
 app.get('/api/my-referrals', async (req, res) => {
   const user = await db.collection('users').findOne({ token: req.headers.authorization });
@@ -199,6 +270,194 @@ app.get('/74814d72e5abdf9a754e.txt', (req, res) => {
 // Serve static HTML pages directly
 app.get('/dashboard.html', (req, res) => res.sendFile(path.join(__dirname, 'dashboard.html')));
 app.get('/login.html', (req, res) => res.sendFile(path.join(__dirname, 'login.html')));
+app.get('/forgot-password.html', (req, res) => {
+  res.send(`<!DOCTYPE html>
+<html>
+<head>
+<meta charset="UTF-8"/><meta name="viewport" content="width=device-width,initial-scale=1"/>
+<title>Forgot Password — SnapURL</title>
+<link href="https://fonts.googleapis.com/css2?family=Syne:wght@700;800&family=Manrope:wght@400;600;700&display=swap" rel="stylesheet"/>
+<style>
+*{margin:0;padding:0;box-sizing:border-box}
+body{background:#080b10;color:#e8edf5;font-family:'Manrope',sans-serif;min-height:100vh;display:flex;align-items:center;justify-content:center;padding:20px}
+body::before{content:'';position:fixed;inset:0;background-image:linear-gradient(rgba(0,229,255,0.02) 1px,transparent 1px),linear-gradient(90deg,rgba(0,229,255,0.02) 1px,transparent 1px);background-size:40px 40px;pointer-events:none}
+.box{background:#0e1219;border:1px solid #1e2535;border-radius:16px;padding:32px 28px;width:100%;max-width:420px;position:relative;z-index:5}
+.logo{font-family:'Syne',sans-serif;font-size:26px;font-weight:800;text-align:center;margin-bottom:6px}
+.logo span{color:#00e5ff}
+.subtitle{color:#5a6480;font-size:13px;text-align:center;margin-bottom:28px}
+.step{display:none}.step.active{display:block}
+.step-title{font-family:'Syne',sans-serif;font-size:18px;font-weight:700;margin-bottom:6px}
+.step-sub{color:#5a6480;font-size:13px;margin-bottom:24px;line-height:1.5}
+.field{margin-bottom:16px}
+.field label{display:block;font-size:11px;font-weight:600;letter-spacing:1px;text-transform:uppercase;color:#5a6480;margin-bottom:6px}
+.field input{width:100%;background:#141820;border:1px solid #2a3347;border-radius:8px;padding:12px 14px;color:#e8edf5;font-family:'Manrope',sans-serif;font-size:14px;outline:none;transition:border-color .2s}
+.field input:focus{border-color:rgba(0,229,255,0.4)}
+.otp-input{font-size:24px;font-weight:700;letter-spacing:12px;text-align:center;font-family:monospace}
+.btn{width:100%;background:linear-gradient(135deg,#00e5ff,#00ff94);color:#000;border:none;padding:13px;border-radius:10px;font-family:'Syne',sans-serif;font-size:15px;font-weight:800;cursor:pointer;transition:opacity .2s;margin-top:4px}
+.btn:disabled{opacity:.5;cursor:not-allowed}
+.success{background:rgba(0,255,148,0.08);border:1px solid rgba(0,255,148,0.2);color:#00ff94;padding:12px 14px;border-radius:8px;font-size:13px;margin-bottom:16px;display:none}
+.error{background:rgba(255,61,113,0.08);border:1px solid rgba(255,61,113,0.3);color:#ff6b9d;padding:12px 14px;border-radius:8px;font-size:13px;margin-bottom:16px;display:none}
+.back{display:block;text-align:center;margin-top:20px;font-size:13px;color:#5a6480;text-decoration:none}
+.back:hover{color:#00e5ff}
+.resend{font-size:12px;color:#5a6480;text-align:center;margin-top:12px}
+.resend a{color:#00e5ff;cursor:pointer;text-decoration:none}
+.email-show{color:#00e5ff;font-weight:700}
+</style>
+</head>
+<body>
+<div class="box">
+  <div class="logo">Snap<span>URL</span></div>
+  <div class="subtitle">Password reset karo</div>
+
+  <!-- Step 1: Email -->
+  <div class="step active" id="step1">
+    <div class="step-title">🔐 Forgot Password?</div>
+    <div class="step-sub">Apna registered email daalo — hum OTP bhejenge</div>
+    <div id="s1err" class="error"></div>
+    <div id="s1suc" class="success"></div>
+    <div class="field">
+      <label>Email Address</label>
+      <input type="email" id="emailInput" placeholder="your@email.com"/>
+    </div>
+    <button class="btn" id="s1btn" onclick="sendOTP()">Send OTP →</button>
+    <a href="/login.html" class="back">← Back to Login</a>
+  </div>
+
+  <!-- Step 2: OTP -->
+  <div class="step" id="step2">
+    <div class="step-title">📧 OTP Enter Karo</div>
+    <div class="step-sub">6-digit OTP bheja hai <span class="email-show" id="emailShow"></span> pe. Check karo inbox/spam.</div>
+    <div id="s2err" class="error"></div>
+    <div class="field">
+      <label>Enter OTP</label>
+      <input type="text" id="otpInput" class="otp-input" placeholder="000000" maxlength="6"/>
+    </div>
+    <button class="btn" id="s2btn" onclick="verifyOTP()">Verify OTP →</button>
+    <div class="resend">OTP nahi mila? <a onclick="resendOTP()">Resend karo</a></div>
+    <a href="/login.html" class="back">← Back to Login</a>
+  </div>
+
+  <!-- Step 3: New Password -->
+  <div class="step" id="step3">
+    <div class="step-title">🔑 Naya Password Set Karo</div>
+    <div class="step-sub">Strong password daalo — kam se kam 6 characters</div>
+    <div id="s3err" class="error"></div>
+    <div id="s3suc" class="success"></div>
+    <div class="field">
+      <label>New Password</label>
+      <input type="password" id="newPass" placeholder="New password"/>
+    </div>
+    <div class="field">
+      <label>Confirm Password</label>
+      <input type="password" id="confirmPass" placeholder="Confirm password"/>
+    </div>
+    <button class="btn" id="s3btn" onclick="resetPassword()">Reset Password →</button>
+  </div>
+</div>
+
+<script>
+let userEmail = '';
+let userOTP = '';
+
+async function sendOTP() {
+  const email = document.getElementById('emailInput').value.trim();
+  const err = document.getElementById('s1err');
+  const suc = document.getElementById('s1suc');
+  const btn = document.getElementById('s1btn');
+  err.style.display='none'; suc.style.display='none';
+  if (!email) { err.textContent='Email daalo!'; err.style.display='block'; return; }
+  btn.disabled=true; btn.textContent='Sending...';
+  try {
+    const res = await fetch('/api/forgot-password', {
+      method:'POST', headers:{'Content-Type':'application/json'},
+      body: JSON.stringify({ email })
+    });
+    const data = await res.json();
+    if (!res.ok) { err.textContent=data.error; err.style.display='block'; return; }
+    userEmail = email;
+    document.getElementById('emailShow').textContent = email;
+    suc.textContent='✅ OTP sent! Check your email.';
+    suc.style.display='block';
+    setTimeout(() => {
+      document.getElementById('step1').classList.remove('active');
+      document.getElementById('step2').classList.add('active');
+    }, 1000);
+  } catch(e) { err.textContent='Server error! Try again.'; err.style.display='block'; }
+  finally { btn.disabled=false; btn.textContent='Send OTP →'; }
+}
+
+async function verifyOTP() {
+  const otp = document.getElementById('otpInput').value.trim();
+  const err = document.getElementById('s2err');
+  const btn = document.getElementById('s2btn');
+  err.style.display='none';
+  if (otp.length !== 6) { err.textContent='6-digit OTP daalo!'; err.style.display='block'; return; }
+  // Just move to step 3 — actual verify on reset
+  userOTP = otp;
+  btn.textContent='✅ Verified!';
+  setTimeout(() => {
+    document.getElementById('step2').classList.remove('active');
+    document.getElementById('step3').classList.add('active');
+    btn.textContent='Verify OTP →';
+  }, 600);
+}
+
+async function resetPassword() {
+  const newPass = document.getElementById('newPass').value;
+  const confirmPass = document.getElementById('confirmPass').value;
+  const err = document.getElementById('s3err');
+  const suc = document.getElementById('s3suc');
+  const btn = document.getElementById('s3btn');
+  err.style.display='none'; suc.style.display='none';
+  if (!newPass || !confirmPass) { err.textContent='Dono fields bharo!'; err.style.display='block'; return; }
+  if (newPass !== confirmPass) { err.textContent='Passwords match nahi kar rahe!'; err.style.display='block'; return; }
+  if (newPass.length < 6) { err.textContent='Password kam se kam 6 characters ka hona chahiye!'; err.style.display='block'; return; }
+  btn.disabled=true; btn.textContent='Resetting...';
+  try {
+    const res = await fetch('/api/reset-password', {
+      method:'POST', headers:{'Content-Type':'application/json'},
+      body: JSON.stringify({ email: userEmail, otp: userOTP, newPassword: newPass })
+    });
+    const data = await res.json();
+    if (!res.ok) {
+      if (data.error.includes('OTP')) {
+        // OTP galat — wapas step 2
+        err.textContent = data.error;
+        err.style.display='block';
+        setTimeout(() => {
+          document.getElementById('step3').classList.remove('active');
+          document.getElementById('step2').classList.add('active');
+        }, 1500);
+        return;
+      }
+      err.textContent=data.error; err.style.display='block'; return;
+    }
+    suc.textContent='✅ Password reset ho gaya! Login karo.';
+    suc.style.display='block';
+    btn.textContent='✅ Done!';
+    setTimeout(() => window.location='/login.html', 2000);
+  } catch(e) { err.textContent='Server error!'; err.style.display='block'; }
+  finally { btn.disabled=false; if(btn.textContent==='Resetting...') btn.textContent='Reset Password →'; }
+}
+
+function resendOTP() {
+  document.getElementById('step2').classList.remove('active');
+  document.getElementById('step1').classList.add('active');
+  document.getElementById('s1err').style.display='none';
+  document.getElementById('s1suc').style.display='none';
+}
+
+// Enter key support
+document.addEventListener('keydown', e => {
+  if (e.key !== 'Enter') return;
+  if (document.getElementById('step1').classList.contains('active')) sendOTP();
+  else if (document.getElementById('step2').classList.contains('active')) verifyOTP();
+  else if (document.getElementById('step3').classList.contains('active')) resetPassword();
+});
+</script>
+</body>
+</html>`);
+});
 app.get('/register.html', (req, res) => {
   const ref = req.query.ref;
   if (!ref) return res.sendFile(path.join(__dirname, 'register.html'));
@@ -1210,7 +1469,7 @@ ${CSS}
 </div>
 
 <script>
-var step=1,t=5;
+var step=1,t=5,done=false;
 var countEl=document.getElementById('adCount');
 var fillEl=document.getElementById('adFill');
 var contBtn=document.getElementById('contBtn');
@@ -1222,7 +1481,8 @@ var adSlot=document.getElementById('adSlot');
 var ad2='${nextAd().replace(/\\/g,'\\\\').replace(/'/g,"\\'").replace(/\n/g,'')}';
 
 function startTimer(){
-  t=5;fillEl.style.width='100%';contBtn.style.display='none';countEl.textContent=t;
+  t=5;fillEl.style.width='100%';contBtn.style.display='none';
+  countEl.style.color='#00e5ff';countEl.textContent=t;
   var iv=setInterval(function(){
     t--;countEl.textContent=t;fillEl.style.width=(t/5*100)+'%';
     if(t<=0){clearInterval(iv);countEl.textContent='✓';countEl.style.color='#00ff94';contBtn.style.display='block';}
@@ -1230,22 +1490,32 @@ function startTimer(){
 }
 
 function nextStep(){
+  if(done) return; // double click guard
   if(step===1){
     step=2;
     stepEl.textContent='2';
-    titleEl.textContent='📢 Ek Aur Ad';
-    subEl.textContent='Last one — phir link khulega!';
+    titleEl.textContent='📢 Last Ad';
+    subEl.textContent='Bas yeh ek — phir tumhara link khulega!';
     adSlot.innerHTML=ad2;
-    try{window.open('${MONETAG_SMART}','_blank');}catch(e){}
-    contBtn.onclick=openLink;
+    contBtn.style.display='none';
     startTimer();
-  } else { openLink(); }
+  } else if(step===2){
+    openLink();
+  }
 }
 
 function openLink(){
+  if(done) return; // prevent multiple calls
+  done=true;
   contBtn.disabled=true;
+  contBtn.style.display='none';
+  // Smart link — try/catch, no window.open on mobile (blocks popups)
+  try{
+    var popup=window.open('${MONETAG_SMART}','_blank');
+    if(!popup) console.log('Popup blocked');
+  }catch(e){}
   document.getElementById('adOverlay').innerHTML='<div style="text-align:center;color:#00ff94;font-size:40px;padding:40px">✅<br><span style="font-size:14px;color:#888;font-family:sans-serif">Link khul raha hai...</span></div>';
-  setTimeout(function(){window.location='${finalDest}';},600);
+  setTimeout(function(){ window.location='${finalDest}'; },800);
 }
 
 startTimer();
