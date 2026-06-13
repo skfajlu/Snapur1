@@ -380,11 +380,6 @@ app.get('/:code', async (req, res) => {
   // Get page number - only count on pg=1
   const pg = parseInt(req.query.pg || '1');
 
-  // Check if visitor is the link owner — owners never get counted
-  const visitorToken = req.headers.cookie && req.headers.cookie.split(';').map(c=>c.trim()).find(c=>c.startsWith('snaptoken='));
-  const visitorTokenValue = visitorToken ? visitorToken.split('=')[1] : null;
-  const isOwner = visitorTokenValue && link.ownerToken && visitorTokenValue === link.ownerToken;
-
   const cookieKey = 'clicked_' + link.code;
   const cookieCounted = req.headers.cookie && req.headers.cookie.includes(cookieKey + '=1');
   const visitorIP = req.headers['x-forwarded-for']?.split(',')[0].trim() || req.socket.remoteAddress || '';
@@ -394,8 +389,8 @@ app.get('/:code', async (req, res) => {
     createdAt: { $gte: new Date(Date.now() - 24*60*60*1000) }
   });
 
-  // Count sirf pg=6 pe — last page complete kare tab hi earn
-  if (pg === 5 && !isOwner && !cookieCounted && !ipCheck) {
+  // Count on pg=5 — cookie aur IP se duplicate rok, owner bhi count hoga
+  if (pg === 5 && !cookieCounted && !ipCheck) {
     const day = new Date().getDay();
     const dayIdx = day === 0 ? 6 : day - 1;
     const cf_country = req.headers['cf-ipcountry'] || '';
