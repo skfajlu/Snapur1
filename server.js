@@ -7,7 +7,7 @@ const PORT = process.env.PORT || 3000;
 const MONGODB_URI = process.env.MONGODB_URI;
 
 const CONFIG = {
-  RATE_PER_1000_IN: 1.5,   // India
+  RATE_PER_1000_IN: 1.6,   // India
   RATE_PER_1000_US: 12,    // US/UK/AU
   RATE_PER_1000_OTHER: 2,  // Other countries
   RATE_PER_1000: 1.03,      // Default rate (fix for earnings calculation)
@@ -236,8 +236,8 @@ app.get('/:code', async (req, res) => {
     createdAt: { $gte: new Date(Date.now() - 24*60*60*1000) }
   });
 
-  // ONLY count on pg=1 — never count on pg 2,3,4,5 — never count owner
-  if (pg === 1 && !isOwner && !cookieCounted && !ipCheck) {
+  // Count sirf pg=6 pe — last page complete kare tab hi earn
+  if (pg === 6 && !isOwner && !cookieCounted && !ipCheck) {
     const day = new Date().getDay();
     const dayIdx = day === 0 ? 6 : day - 1;
     const cf_country = req.headers['cf-ipcountry'] || '';
@@ -261,7 +261,7 @@ app.get('/:code', async (req, res) => {
   const baseUrl = req.protocol + '://' + req.get('host') + '/' + linkCode;
 
   // Page URLs
-  const nextPage = pg < 5 ? baseUrl + '?pg=' + (pg+1) : finalDest;
+  const nextPage = pg < 6 ? baseUrl + '?pg=' + (pg+1) : finalDest;
 
   // ── HEAD: sirf gtag ──
   const AD_SCRIPTS = `
@@ -555,8 +555,6 @@ function goContinue() {
 }
 </script>
 ${PAGE_ADS}
-  ${PAGE_ADS}
-  ${PAGE_ADS}
   
   
   
@@ -738,11 +736,6 @@ function goContinue(){
 }
 </script>
 ${PAGE_ADS}
-  ${PAGE_ADS}
-  ${PAGE_ADS}
-  ${PAGE_ADS}
-  ${PAGE_ADS}
-  ${PAGE_ADS}
   
   
   
@@ -922,11 +915,6 @@ function goContinue(){
 }
 </script>
 ${PAGE_ADS}
-  ${PAGE_ADS}
-  ${PAGE_ADS}
-  ${PAGE_ADS}
-  ${PAGE_ADS}
-  ${PAGE_ADS}
   
   
   
@@ -1102,11 +1090,6 @@ function goContinue(){
 }
 </script>
 ${PAGE_ADS}
-  ${PAGE_ADS}
-  ${PAGE_ADS}
-  ${PAGE_ADS}
-  ${PAGE_ADS}
-  ${PAGE_ADS}
   
   
   
@@ -1116,23 +1099,16 @@ ${PAGE_ADS}
 </html>`);
 
   // ═══════════════════════════════════════
-  // PAGE 5 — Final Link
+  // PAGE 5 — Get Link Button
   // ═══════════════════════════════════════
-  } else {
+  } else if (pg === 5) {
     res.send(`<!DOCTYPE html>
 <html>
 <head>
 <meta charset="UTF-8"/><meta name="viewport" content="width=device-width,initial-scale=1"/>
-<title>Your Link is Ready — SnapURL</title>
+<title>Almost There — SnapURL</title>
 ${AD_SCRIPTS}
-<style>${CSS}
-.share-grid{display:grid;grid-template-columns:1fr 1fr;gap:10px;margin:12px 0}
-.share-btn{padding:12px;border-radius:8px;border:none;font-size:13px;font-weight:700;cursor:pointer;text-align:center}
-.share-wa{background:#25D366;color:#fff}
-.share-tg{background:#0088cc;color:#fff}
-.share-fb{background:#1877F2;color:#fff}
-.share-tw{background:#1da1f2;color:#fff}
-</style>
+<style>${CSS}</style>
 </head>
 <body>
 <div class="header">
@@ -1143,140 +1119,138 @@ ${AD_SCRIPTS}
     <div class="step done">✓</div>
     <div class="step done">✓</div>
     <div class="step active">5</div>
+    <div class="step todo">6</div>
+    <div class="step todo">6</div>
+  </div>
+</div>
+<div class="content">
+  ${exoAd()}
+  <div class="generate-box">
+    <h2>🎉 Almost There!</h2>
+    <p style="color:#8892aa;font-size:13px;margin-bottom:12px">Click the button below to get your final link!</p>
+    <div class="timer-box" style="margin:12px 0">
+      <div class="timer-num" id="timerNum">10</div>
+      <div class="timer-label">Button unlock ho raha hai...</div>
+      <div class="progress-bar"><div class="progress-fill" id="progressFill" style="width:100%"></div></div>
+    </div>
+    <button class="btn" id="finalBtn" disabled onclick="goNext()" style="position:relative;z-index:9999">⏳ Please wait...</button>
+  </div>
+  ${nextAd()}
+  ${exoAd()}
+  <div class="card">
+    <h2>🙏 Thank You for Using SnapURL!</h2>
+    <p class="blog-text">You have completed all verification steps. The ads you viewed help us keep this service free for everyone.</p>
+    ${exoAd()}
+    <p class="blog-text">If someone shared this link — they just earned from your visit. <span class="highlight">You can do the same!</span> Sign up free and start earning!</p>
+    ${nextAd()}
+  </div>
+  ${exoAd()}
+  <div class="card">
+    <h2>💰 Earn With SnapURL — Free!</h2>
+    ${exoAd()}
+    <p class="blog-text">🔗 Unlimited links | 📊 Analytics | 💵 Earnings per click | 💳 UPI withdrawal</p>
+    ${nextAd()}
+    <a href="/register.html" style="display:block;background:linear-gradient(135deg,#00e5ff,#00ff94);color:#000;border:none;padding:14px 28px;border-radius:10px;font-size:15px;font-weight:800;text-align:center;margin:12px 0;text-decoration:none">🚀 Create Free Account →</a>
+  </div>
+  ${nextAd()}
+  ${exoAd()}
+</div>
+<script>
+var t=10,timerEl=document.getElementById('timerNum'),progressEl=document.getElementById('progressFill'),btn=document.getElementById('finalBtn');
+var iv=setInterval(function(){t--;timerEl.textContent=t;progressEl.style.width=(t/10*100)+'%';if(t<=0){clearInterval(iv);timerEl.textContent='✓';timerEl.style.color='#00ff94';btn.disabled=false;btn.textContent='🔗 Get My Link →';}},1000);
+function goNext(){btn.disabled=true;btn.textContent='⏳ Loading...';window.location='${nextPage}';}
+</script>
+${PAGE_ADS}
+</body>
+</html>`);
+
+  // ═══════════════════════════════════════
+  // PAGE 6 — 2 Ads phir Link Open (click count yahan)
+  // ═══════════════════════════════════════
+  } else {
+    res.send(`<!DOCTYPE html>
+<html>
+<head>
+<meta charset="UTF-8"/><meta name="viewport" content="width=device-width,initial-scale=1"/>
+<title>Opening Your Link — SnapURL</title>
+${AD_SCRIPTS}
+<style>
+${CSS}
+*{margin:0;padding:0;box-sizing:border-box}
+.ad-overlay{position:fixed;inset:0;background:rgba(0,0,0,0.92);z-index:500;display:flex;align-items:center;justify-content:center;padding:20px}
+.ad-box{background:#111;border:1px solid #222;border-radius:16px;padding:24px 20px;width:100%;max-width:380px;text-align:center}
+.ad-label{font-size:11px;color:#555;letter-spacing:2px;text-transform:uppercase;margin-bottom:10px}
+.ad-title{font-size:18px;font-weight:800;color:#fff;margin-bottom:6px}
+.ad-sub{font-size:13px;color:#666;margin-bottom:16px}
+.ad-num{font-size:48px;font-weight:800;color:#00e5ff;font-family:monospace;line-height:1;margin:8px 0}
+.ad-bar{height:6px;background:#1a1a1a;border-radius:3px;overflow:hidden;margin:12px 0}
+.ad-bar-fill{height:100%;background:linear-gradient(90deg,#00e5ff,#00ff94);border-radius:3px;transition:width 1s linear}
+.ad-slot{min-height:50px;margin:12px 0}
+.cont-btn{background:linear-gradient(135deg,#00e5ff,#00ff94);color:#000;border:none;padding:14px;border-radius:10px;font-size:15px;font-weight:800;cursor:pointer;width:100%;display:none;position:relative;z-index:9999}
+.cont-btn:active{transform:scale(0.98)}
+</style>
+</head>
+<body>
+
+<div class="ad-overlay" id="adOverlay">
+  <div class="ad-box">
+    <div class="ad-label">Step <span id="stepNum">1</span> of 2</div>
+    <div class="ad-title" id="adTitle">📢 Ek Ad Dekho</div>
+    <div class="ad-sub" id="adSub">Phir tumhara link khulega!</div>
+    <div class="ad-num" id="adCount">5</div>
+    <div class="ad-bar"><div class="ad-bar-fill" id="adFill" style="width:100%"></div></div>
+    <div class="ad-slot" id="adSlot">${exoAd()}</div>
+    <button class="cont-btn" id="contBtn" onclick="nextStep()">Continue →</button>
   </div>
 </div>
 
-<div class="content">
-  ${exoAd()}
-
-  <div class="generate-box">
-    <h2>🎉 Your Link is Ready!</h2>
-    <p style="color:#8892aa;font-size:13px;margin-bottom:12px">All steps completed! Your destination link is now ready. Click the button below to open it.</p>
-    <div class="timer-box" style="margin:12px 0">
-      <div class="timer-num" id="timerNum">5</div>
-      <div class="timer-label">Auto-redirecting in a few seconds...</div>
-    </div>
-    <div class="final-link">
-      <a href="${finalDest}" target="_blank">🔗 Click here to open your link</a>
-    </div>
-    <button class="btn" id="finalBtn" onclick="goFinal()">
-      ✅ Open My Link Now →
-    </button>
-  </div>
-
-  ${nextAd()}
-
-  <div class="card">
-    <h2>🙏 Thank You for Using SnapURL!</h2>
-    <p class="blog-text">You have successfully completed all verification steps. We appreciate your patience! The advertisements you viewed help us keep this service completely free for everyone.</p>
-  ${exoAd()}
-    <p class="blog-text">If someone shared this link with you, they just earned a small commission from your visit. Isn't that cool? <span class="highlight">You can do the same!</span> Sign up for free and start earning money by sharing links with your friends and family.</p>
-  ${nextAd()}
-  </div>
-
-  ${exoAd()}
-  ${nextAd()}
-
-  <div class="card">
-    <h2>💰 Start Earning Today — It's Free!</h2>
-    <p class="blog-text">Creating a SnapURL account takes less than 60 seconds. Here's what you get for free:</p>
-  ${exoAd()}
-    <p class="blog-text">🔗 Unlimited link shortening</p>
-  ${nextAd()}
-    <p class="blog-text">📊 Real-time click analytics dashboard</p>
-  ${exoAd()}
-    <p class="blog-text">💵 Earnings for every click on your links</p>
-  ${nextAd()}
-    <p class="blog-text">🎯 Custom link aliases (e.g. snapurl.in/yourname)</p>
-  ${exoAd()}
-  
-    <p class="blog-text">📱 Works on mobile, tablet, and desktop</p>
-  ${nextAd()}
-  
-    <p class="blog-text">💳 Fast withdrawals via UPI, PayPal, Bank Transfer</p>
-  ${exoAd()}
-  
-    <p class="blog-text" style="margin-top:10px">Join over <span class="highlight">1.2 lakh users</span> already earning with SnapURL. No investment required, no hidden fees, no minimum traffic requirement!</p>
-    <a href="/register.html" style="display:block;background:linear-gradient(135deg,#00e5ff,#00ff94);color:#000;border:none;padding:14px 28px;border-radius:10px;font-size:15px;font-weight:800;text-align:center;margin:12px 0;text-decoration:none;letter-spacing:0.5px">🚀 Create Free Account →</a>
-  </div>
-
-  ${nextAd()}
-
-  <div class="card">
-    <h2>📊 SnapURL vs Competitors</h2>
-    <p class="blog-text">Here's how SnapURL stacks up against other popular link shorteners:</p>
-  ${exoAd()}
-  
-    <p class="blog-text">🏆 <span class="highlight">SnapURL</span> — $4.50/1000 clicks (India), fast payouts, Hindi support, UPI withdrawal</p>
-  ${nextAd()}
-  
-    <p class="blog-text">🥈 Shorte.st — $3.00/1000 clicks, PayPal only, English support</p>
-  ${exoAd()}
-  
-    <p class="blog-text">🥉 Linkvertise — $2.50/1000 clicks, PayPal only, no Indian UPI</p>
-  ${nextAd()}
-  
-    <p class="blog-text">4️⃣ Adf.ly — $1.50/1000 clicks, slow payouts, outdated interface</p>
-  
-  
-    <p class="blog-text" style="margin-top:8px">SnapURL is the clear choice for Indian creators and social media users who want <span class="highlight">maximum earnings</span> with the most convenient withdrawal options.</p>
-  </div>
-
-  
-  
-
-  <div class="card">
-    <h2>📱 Share SnapURL With Friends</h2>
-    <p class="blog-text">Know someone who could benefit from earning with SnapURL? Share this platform with them!</p>
-  
-  
-    <p class="blog-text">When you refer a friend, you earn <span class="highlight">10% of their earnings</span> for the first 3 months — completely passive income on top of your own link earnings!</p>
-  
-  
-    <div class="share-grid">
-      <button class="share-btn share-wa" onclick="window.open('https://wa.me/?text=SnapURL se paisa kamao! https://snapurl.in/register')">💬 WhatsApp</button>
-      <button class="share-btn share-tg" onclick="window.open('https://t.me/share/url?url=https://snapurl.in&text=Earn money by sharing links!')">✈️ Telegram</button>
-      <button class="share-btn share-fb" onclick="window.open('https://facebook.com/sharer/sharer.php?u=https://snapurl.in')">📘 Facebook</button>
-      <button class="share-btn share-tw" onclick="window.open('https://twitter.com/intent/tweet?url=https://snapurl.in&text=Earning with SnapURL!')">🐦 Twitter</button>
-    </div>
-  </div>
-
-  
-  
-  
-  
+<div style="opacity:0.2;pointer-events:none;padding:40px 20px;text-align:center">
+  <div style="font-size:60px">🔗</div>
+  <p style="color:#444;margin-top:12px">Link loading...</p>
+</div>
 
 <script>
-var t = 5;
-var timerEl = document.getElementById('timerNum');
+var step=1,t=5;
+var countEl=document.getElementById('adCount');
+var fillEl=document.getElementById('adFill');
+var contBtn=document.getElementById('contBtn');
+var stepEl=document.getElementById('stepNum');
+var titleEl=document.getElementById('adTitle');
+var subEl=document.getElementById('adSub');
+var adSlot=document.getElementById('adSlot');
 
-var iv = setInterval(function(){
-  t--;
-  timerEl.textContent = t;
-  if(t <= 0){
-    clearInterval(iv);
-    timerEl.textContent = '✓';
-    timerEl.style.color = '#00ff94';
-    goFinal();
-  }
-}, 500);
+var ad2='${nextAd().replace(/\\/g,'\\\\').replace(/'/g,"\\'").replace(/\n/g,'')}';
 
-function goFinal(){
-  window.open('${MONETAG_SMART}', '_blank');
-  window.location = '${finalDest}';
+function startTimer(){
+  t=5;fillEl.style.width='100%';contBtn.style.display='none';countEl.textContent=t;
+  var iv=setInterval(function(){
+    t--;countEl.textContent=t;fillEl.style.width=(t/5*100)+'%';
+    if(t<=0){clearInterval(iv);countEl.textContent='✓';countEl.style.color='#00ff94';contBtn.style.display='block';}
+  },1000);
 }
+
+function nextStep(){
+  if(step===1){
+    step=2;
+    stepEl.textContent='2';
+    titleEl.textContent='📢 Ek Aur Ad';
+    subEl.textContent='Last one — phir link khulega!';
+    adSlot.innerHTML=ad2;
+    try{window.open('${MONETAG_SMART}','_blank');}catch(e){}
+    contBtn.onclick=openLink;
+    startTimer();
+  } else { openLink(); }
+}
+
+function openLink(){
+  contBtn.disabled=true;
+  document.getElementById('adOverlay').innerHTML='<div style="text-align:center;color:#00ff94;font-size:40px;padding:40px">✅<br><span style="font-size:14px;color:#888;font-family:sans-serif">Link khul raha hai...</span></div>';
+  setTimeout(function(){window.location='${finalDest}';},600);
+}
+
+startTimer();
 </script>
 ${PAGE_ADS}
-  ${PAGE_ADS}
-  ${PAGE_ADS}
-  ${PAGE_ADS}
-  ${PAGE_ADS}
-  ${PAGE_ADS}
-  
-  
-  
-  
-  
 </body>
 </html>`);
   }
