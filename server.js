@@ -7,10 +7,10 @@ const PORT = process.env.PORT || 3000;
 const MONGODB_URI = process.env.MONGODB_URI;
 
 const CONFIG = {
-  RATE_PER_1000_IN: 1.3,   // India
+  RATE_PER_1000_IN: 1.5,   // India
   RATE_PER_1000_US: 12,    // US/UK/AU
   RATE_PER_1000_OTHER: 2,  // Other countries
-  RATE_PER_1000: 1.03,      // Default rate
+  RATE_PER_1000: 1.03,      // Default rate (fix for earnings calculation)
   MIN_WITHDRAW: 5,
   ADMIN_USER: process.env.ADMIN_USER || 'admin',
   ADMIN_PASS: process.env.ADMIN_PASS || 'snapurl@admin123'
@@ -36,32 +36,20 @@ app.post('/api/register', async (req, res) => {
   const exists = await db.collection('users').findOne({ $or: [{ email }, { username }] });
   if (exists) return res.status(409).json({ error: exists.email === email ? 'Email already registered!' : 'Username taken!' });
   const referralCode = username.toLowerCase().replace(/[^a-z0-9]/g,'') + randCode(4);
-  const refCode = ref || null;
   const user = {
-    username, email, password: hash(password),
-    token: randCode(32),
+    username, email, password: hash(password), token: randCode(32),
     balance: 0, totalEarned: 0, totalLinks: 0, totalClicks: 0,
-    referralCode,
-    referredBy: refCode,
-    referralCount: 0,
-    referralEarnings: 0,
+    referralCode, referredBy: ref || null, referralCount: 0, referralEarnings: 0,
     joined: new Date(), status: 'active'
   };
   await db.collection('users').insertOne(user);
-  if (refCode) {
-    const referrer = await db.collection('users').findOne({ referralCode: refCode });
+  if (ref) {
+    const referrer = await db.collection('users').findOne({ referralCode: ref });
     if (referrer) {
-      await db.collection('users').updateOne(
-        { referralCode: refCode },
-        { $inc: { referralCount: 1 } }
-      );
+      await db.collection('users').updateOne({ referralCode: ref }, { $inc: { referralCount: 1 } });
       await db.collection('referrals').insertOne({
-        referrerId: referrer._id,
-        referrerUsername: referrer.username,
-        newUserId: user._id,
-        newUsername: username,
-        joined: new Date(),
-        bonusPaid: false
+        referrerId: referrer._id, referrerUsername: referrer.username,
+        newUserId: user._id, newUsername: username, joined: new Date(), bonusPaid: false
       });
     }
   }
@@ -115,37 +103,19 @@ app.post('/api/withdraw', async (req, res) => {
   if (!amount || !method || !details) return res.status(400).json({ error: 'All fields required' });
   if (amount < CONFIG.MIN_WITHDRAW) return res.status(400).json({ error: `Minimum withdrawal is $${CONFIG.MIN_WITHDRAW}` });
   if (user.balance < amount) return res.status(400).json({ error: 'Insufficient balance!' });
-
   await db.collection('users').updateOne({ _id: user._id }, { $inc: { balance: -amount } });
-  await db.collection('withdrawals').insertOne({
-    userId: user._id, username: user.username,
-    amount, method, details, status: 'pending', created: new Date()
-  });
-
-  // ── 2% Referral Commission — jis ne refer kiya usse milega ──
+  await db.collection('withdrawals').insertOne({ userId: user._id, username: user.username, amount, method, details, status: 'pending', created: new Date() });
+  // 2% referral commission
   try {
     if (user.referredBy) {
       const referrer = await db.collection('users').findOne({ referralCode: user.referredBy });
       if (referrer) {
         const commission = parseFloat((amount * 0.02).toFixed(4));
-        await db.collection('users').updateOne(
-          { _id: referrer._id },
-          { $inc: { balance: commission, totalEarned: commission, referralEarnings: commission } }
-        );
-        // Commission log karo
-        await db.collection('referral_commissions').insertOne({
-          referrerId: referrer._id,
-          referrerUsername: referrer.username,
-          fromUserId: user._id,
-          fromUsername: user.username,
-          withdrawAmount: amount,
-          commission,
-          createdAt: new Date()
-        });
+        await db.collection('users').updateOne({ _id: referrer._id }, { $inc: { balance: commission, totalEarned: commission, referralEarnings: commission } });
+        await db.collection('referral_commissions').insertOne({ referrerId: referrer._id, referrerUsername: referrer.username, fromUserId: user._id, fromUsername: user.username, withdrawAmount: amount, commission, createdAt: new Date() });
       }
     }
-  } catch(e) { /* commission error se withdrawal affect na ho */ }
-
+  } catch(e) {}
   res.json({ success: true, message: 'Withdrawal request submitted!' });
 });
 
@@ -165,54 +135,20 @@ function adminAuth(req, res, next) {
 app.get('/api/my-referrals', async (req, res) => {
   const user = await db.collection('users').findOne({ token: req.headers.authorization });
   if (!user) return res.status(401).json({ error: 'Unauthorized' });
-  const referrals = await db.collection('referrals')
-    .find({ referrerId: user._id })
-    .sort({ joined: -1 })
-    .toArray();
-
-  // Har referred user ke totalClicks bhi fetch karo
+  const referrals = await db.collection('referrals').find({ referrerId: user._id }).sort({ joined: -1 }).toArray();
   const enriched = await Promise.all(referrals.map(async r => {
     const refUser = await db.collection('users').findOne({ _id: r.newUserId });
-    return {
-      username: r.newUsername,
-      joined: r.joined,
-      bonusPaid: r.bonusPaid,
-      totalClicks: refUser ? (refUser.totalClicks || 0) : 0
-    };
+    return { username: r.newUsername, joined: r.joined, totalClicks: refUser ? (refUser.totalClicks||0) : 0 };
   }));
-
-  // Commission history (withdraw se mili 2%)
-  const commissions = await db.collection('referral_commissions')
-    .find({ referrerId: user._id })
-    .sort({ createdAt: -1 })
-    .limit(20)
-    .toArray();
-
+  const commissions = await db.collection('referral_commissions').find({ referrerId: user._id }).sort({ createdAt: -1 }).limit(20).toArray();
   res.json({
-    referralCode: user.referralCode,
+    referralCode: user.referralCode || '',
     referralLink: `${req.protocol}://${req.get('host')}/register.html?ref=${user.referralCode}`,
     totalReferrals: user.referralCount || 0,
     referralEarnings: user.referralEarnings || 0,
     referrals: enriched,
-    commissions: commissions.map(c => ({
-      fromUsername: c.fromUsername,
-      withdrawAmount: c.withdrawAmount,
-      commission: c.commission,
-      date: c.createdAt
-    }))
+    commissions: commissions.map(c => ({ fromUsername: c.fromUsername, withdrawAmount: c.withdrawAmount, commission: c.commission, date: c.createdAt }))
   });
-});
-
-// Admin: manually credit referral bonus
-app.post('/api/admin/referral-bonus', adminAuth, async (req, res) => {
-  const { username, amount } = req.body;
-  const user = await db.collection('users').findOne({ username });
-  if (!user) return res.status(404).json({ error: 'User not found' });
-  await db.collection('users').updateOne(
-    { username },
-    { $inc: { balance: amount, referralEarnings: amount } }
-  );
-  res.json({ success: true, message: `₹${amount} credited to ${username}` });
 });
 
 app.get('/api/admin/stats', adminAuth, async (req, res) => {
@@ -266,20 +202,9 @@ app.get('/login.html', (req, res) => res.sendFile(path.join(__dirname, 'login.ht
 app.get('/register.html', (req, res) => {
   const ref = req.query.ref;
   if (!ref) return res.sendFile(path.join(__dirname, 'register.html'));
-  // Inject ref code into register page
   const fs = require('fs');
   let html = fs.readFileSync(path.join(__dirname, 'register.html'), 'utf8');
-  // Inject script to prefill ref field after page loads
-  const inject = `<script>
-    window.addEventListener('DOMContentLoaded', function(){
-      var refInput = document.getElementById('refCode') || document.querySelector('input[name="ref"]') || document.querySelector('input[placeholder*="eferral"]');
-      if(refInput){ refInput.value = '${ref}'; refInput.readOnly = true; }
-      else {
-        // Store in localStorage as fallback
-        localStorage.setItem('snapref', '${ref}');
-      }
-    });
-  </script>`;
+  const inject = `<script>window.addEventListener('DOMContentLoaded',function(){var i=document.getElementById('refCode')||document.querySelector('input[name="ref"]');if(i){i.value='${ref}';i.readOnly=true;}else{localStorage.setItem('snapref','${ref}');}});</script>`;
   html = html.replace('</body>', inject + '</body>');
   res.send(html);
 });
@@ -288,202 +213,7 @@ app.get('/about.html', (req, res) => res.sendFile(path.join(__dirname, 'about.ht
 app.get('/terms.html', (req, res) => res.sendFile(path.join(__dirname, 'terms.html')));
 app.get('/privacy.html', (req, res) => res.sendFile(path.join(__dirname, 'privacy.html')));
 
-// ── Referral Page ──
-app.get('/referral', async (req, res) => {
-  res.send(`<!DOCTYPE html>
-<html>
-<head>
-<meta charset="UTF-8"/>
-<meta name="viewport" content="width=device-width,initial-scale=1"/>
-<title>Referral Program — SnapURL</title>
-<style>
-*{margin:0;padding:0;box-sizing:border-box}
-body{background:#0a0a0a;color:#e0e0e0;font-family:'Segoe UI',sans-serif;min-height:100vh}
-.header{background:#0d0d0d;border-bottom:1px solid #1a1a1a;padding:14px 20px;display:flex;align-items:center;justify-content:space-between}
-.logo{font-size:20px;font-weight:800;color:#fff}.logo span{color:#00e5ff}
-.back-btn{background:#1a1a1a;border:1px solid #333;color:#ccc;padding:8px 14px;border-radius:8px;font-size:13px;cursor:pointer;text-decoration:none}
-.container{max-width:600px;margin:0 auto;padding:20px 16px}
-.card{background:#111;border:1px solid #1e1e1e;border-radius:14px;padding:20px;margin-bottom:16px}
-h1{font-size:22px;font-weight:800;color:#fff;margin-bottom:6px}
-h2{font-size:16px;font-weight:700;color:#00e5ff;margin-bottom:12px}
-p{color:#888;font-size:13px;line-height:1.6}
-.stat-grid{display:grid;grid-template-columns:1fr 1fr;gap:12px;margin:16px 0}
-.stat{background:#0d1a2e;border:1px solid #1a3a5a;border-radius:10px;padding:16px;text-align:center}
-.stat-num{font-size:26px;font-weight:800;color:#00e5ff}
-.stat-label{font-size:11px;color:#666;margin-top:4px}
-.ref-box{background:#0a1a0a;border:2px solid #00ff94;border-radius:12px;padding:16px;margin:16px 0;text-align:center}
-.ref-code{font-size:24px;font-weight:800;color:#00ff94;letter-spacing:3px;margin:8px 0}
-.ref-link{font-size:11px;color:#555;word-break:break-all;margin:6px 0}
-.copy-btn{background:linear-gradient(135deg,#00e5ff,#00ff94);color:#000;border:none;padding:10px 20px;border-radius:8px;font-size:13px;font-weight:800;cursor:pointer;width:100%;margin-top:10px}
-.copy-btn:active{transform:scale(0.98)}
-.share-grid{display:grid;grid-template-columns:1fr 1fr;gap:10px;margin-top:12px}
-.share-btn{padding:12px;border-radius:8px;border:none;font-size:13px;font-weight:700;cursor:pointer}
-.whatsapp{background:#25D366;color:#fff}
-.telegram{background:#0088cc;color:#fff}
-.table{width:100%;border-collapse:collapse;margin-top:10px}
-.table th{background:#0d0d0d;color:#00e5ff;padding:10px;text-align:left;font-size:12px;border-bottom:1px solid #222}
-.table td{padding:10px;color:#bbb;font-size:12px;border-bottom:1px solid #1a1a1a}
-.badge{display:inline-block;padding:2px 8px;border-radius:20px;font-size:11px;font-weight:700}
-.badge.new{background:#0a2a0a;color:#00ff94;border:1px solid #00ff94}
-.how-step{display:flex;align-items:flex-start;gap:14px;padding:12px 0;border-bottom:1px solid #1a1a1a}
-.how-step:last-child{border-bottom:none}
-.step-num{width:32px;height:32px;border-radius:50%;background:linear-gradient(135deg,#00e5ff,#00ff94);color:#000;font-weight:800;font-size:14px;display:flex;align-items:center;justify-content:center;flex-shrink:0}
-.step-info h3{font-size:13px;font-weight:700;color:#fff;margin-bottom:3px}
-.step-info p{font-size:12px;color:#666}
-.earn-highlight{color:#00ff94;font-weight:700}
-.loading{text-align:center;color:#444;padding:30px;font-size:13px}
-.alert{background:#1a0a0a;border:1px solid #ff4444;border-radius:8px;padding:12px;color:#ff6666;font-size:13px;margin:10px 0;display:none}
-</style>
-</head>
-<body>
-
-<div class="header">
-  <div class="logo">Snap<span>URL</span></div>
-  <a href="/dashboard.html" class="back-btn">← Dashboard</a>
-</div>
-
-<div class="container">
-
-  <div id="alertBox" class="alert"></div>
-
-  <!-- Stats -->
-  <div class="card">
-    <h1>👥 Referral Program</h1>
-    <p>Invite friends to SnapURL and earn bonus rewards for every person who joins using your link!</p>
-    <div class="stat-grid">
-      <div class="stat">
-        <div class="stat-num" id="totalRefs">—</div>
-        <div class="stat-label">Total Referrals</div>
-      </div>
-      <div class="stat">
-        <div class="stat-num" id="refEarnings">—</div>
-        <div class="stat-label">Referral Earnings</div>
-      </div>
-    </div>
-  </div>
-
-  <!-- Referral Code -->
-  <div class="card">
-    <h2>🔗 Your Referral Code</h2>
-    <div class="ref-box">
-      <div style="font-size:12px;color:#666">Share this code with friends</div>
-      <div class="ref-code" id="refCode">Loading...</div>
-      <div class="ref-link" id="refLink">—</div>
-      <button class="copy-btn" onclick="copyLink()">📋 Copy Referral Link</button>
-    </div>
-    <div class="share-grid">
-      <button class="share-btn whatsapp" onclick="shareWA()">💬 WhatsApp</button>
-      <button class="share-btn telegram" onclick="shareTG()">✈️ Telegram</button>
-    </div>
-  </div>
-
-  <!-- How it works -->
-  <div class="card">
-    <h2>📖 How It Works</h2>
-    <div class="how-step">
-      <div class="step-num">1</div>
-      <div class="step-info">
-        <h3>Share Your Link</h3>
-        <p>Share your unique referral link with friends, family, or on social media</p>
-      </div>
-    </div>
-    <div class="how-step">
-      <div class="step-num">2</div>
-      <div class="step-info">
-        <h3>They Register</h3>
-        <p>Your friend clicks your link and creates a free SnapURL account</p>
-      </div>
-    </div>
-    <div class="how-step">
-      <div class="step-num">3</div>
-      <div class="step-info">
-        <h3>You Earn Bonus</h3>
-        <p>As soon as they register, you get credited — <span class="earn-highlight">bonus added to your balance!</span></p>
-      </div>
-    </div>
-  </div>
-
-  <!-- Referral History -->
-  <div class="card">
-    <h2>📋 Referral History</h2>
-    <div id="refTable"><div class="loading">Loading your referrals...</div></div>
-  </div>
-
-</div>
-
-<script>
-const token = localStorage.getItem('snaptoken') || document.cookie.split('snaptoken=')[1]?.split(';')[0];
-
-if (!token) {
-  window.location = '/login.html';
-}
-
-let refLink = '';
-
-async function loadReferrals() {
-  try {
-    const res = await fetch('/api/my-referrals', { headers: { Authorization: token } });
-    if (!res.ok) { window.location = '/login.html'; return; }
-    const data = await res.json();
-
-    document.getElementById('totalRefs').textContent = data.totalReferrals;
-    document.getElementById('refEarnings').textContent = '$' + (data.referralEarnings || 0).toFixed(2);
-    document.getElementById('refCode').textContent = data.referralCode.toUpperCase();
-    document.getElementById('refLink').textContent = data.referralLink;
-    refLink = data.referralLink;
-
-    const tableEl = document.getElementById('refTable');
-    if (!data.referrals || data.referrals.length === 0) {
-      tableEl.innerHTML = '<p style="color:#444;text-align:center;padding:20px;font-size:13px">No referrals yet. Share your link to start earning!</p>';
-      return;
-    }
-
-    let rows = data.referrals.map(r => \`
-      <tr>
-        <td>@\${r.username}</td>
-        <td>\${new Date(r.joined).toLocaleDateString('en-IN')}</td>
-        <td><span class="badge new">Joined</span></td>
-      </tr>
-    \`).join('');
-
-    tableEl.innerHTML = \`
-      <table class="table">
-        <thead><tr><th>Username</th><th>Joined</th><th>Status</th></tr></thead>
-        <tbody>\${rows}</tbody>
-      </table>
-    \`;
-  } catch(e) {
-    document.getElementById('refTable').innerHTML = '<p style="color:#f44;text-align:center;padding:20px;font-size:13px">Error loading data</p>';
-  }
-}
-
-function copyLink() {
-  navigator.clipboard.writeText(refLink).then(() => {
-    const btn = document.querySelector('.copy-btn');
-    btn.textContent = '✅ Copied!';
-    setTimeout(() => btn.textContent = '📋 Copy Referral Link', 2000);
-  });
-}
-
-function shareWA() {
-  const msg = encodeURIComponent('🔗 Join SnapURL — Earn money by shortening links! Use my referral link to sign up: ' + refLink);
-  window.open('https://wa.me/?text=' + msg, '_blank');
-}
-
-function shareTG() {
-  const msg = encodeURIComponent('🔗 Join SnapURL — Earn money by shortening links! Use my referral link: ' + refLink);
-  window.open('https://t.me/share/url?url=' + encodeURIComponent(refLink) + '&text=' + msg, '_blank');
-}
-
-loadReferrals();
-</script>
-
-</body>
-</html>`);
-});
-
 app.get('/:code', async (req, res) => {
-  try {
   const reserved = ['about.html','terms.html','privacy.html','admin.html','dashboard.html','register.html','login.html'];
   if (reserved.includes(req.params.code)) return res.sendFile(path.join(__dirname, req.params.code));
   const link = await db.collection('links').findOne({ code: req.params.code });
@@ -507,7 +237,7 @@ app.get('/:code', async (req, res) => {
   });
 
   // ONLY count on pg=1 — never count on pg 2,3,4,5 — never count owner
-  if (pg === 5 && !isOwner && !cookieCounted && !ipCheck) {
+  if (pg === 1 && !isOwner && !cookieCounted && !ipCheck) {
     const day = new Date().getDay();
     const dayIdx = day === 0 ? 6 : day - 1;
     const cf_country = req.headers['cf-ipcountry'] || '';
@@ -528,101 +258,43 @@ app.get('/:code', async (req, res) => {
   const linkCode = link.code;
 
   const MONETAG_SMART = 'https://omg10.com/4/11112574';
-  const ADMAVEN_SMART = 'https://ustashewasputtin.com?OpxxG=1325915';
   const baseUrl = req.protocol + '://' + req.get('host') + '/' + linkCode;
 
   // Page URLs
-  // Flow: 1→2→3→4→6→5→finalDest
-  const pageFlow = { 1:2, 2:3, 3:4, 4:6, 5:null, 6:5 };
-  const nextPage = pageFlow[pg] ? baseUrl + '?pg=' + pageFlow[pg] : finalDest;
+  const nextPage = pg < 5 ? baseUrl + '?pg=' + (pg+1) : finalDest;
 
-  // ── HEAD: gtag + AdMaven verification ──
+  // ── HEAD: sirf gtag ──
   const AD_SCRIPTS = `
-    <meta name='admaven-placement' content='BqjCHrTg4'>
     <script async src="https://www.googletagmanager.com/gtag/js?id=AW-18221606970"></script>
-    <script>
-      window.dataLayer = window.dataLayer || [];
-      function gtag(){dataLayer.push(arguments);}
-      gtag('js', new Date());
-      gtag('config', 'AW-18221606970');
-    </script>
+    <script>window.dataLayer=window.dataLayer||[];function gtag(){dataLayer.push(arguments);}gtag('js',new Date());gtag('config','AW-18221606970');</script>
   `;
 
-  // ── PAGE_ADS: 3 batches mein load — hang nahi hoga ──
+  // ── PAGE_ADS: sirf 3 zones — popunder + push (no vignette, no aggressive ads) ──
   const PAGE_ADS = `
-  <script>
-  (function(){
-    function ls(src, zone){
-      var s=document.createElement('script');
-      s.src=src; s.async=true; s.setAttribute('data-cfasync','false');
-      if(zone) s.setAttribute('data-zone',zone);
-      document.body.appendChild(s);
-    }
-    function lsAl(zone){
-      var s=document.createElement('script');
-      s.dataset.zone=zone; s.src='https://al5sm.com/tag.min.js';
-      s.async=true; document.body.appendChild(s);
-    }
-    // Batch 1 — turant (2 zones)
-    ls('https://quge5.com/88/tag.min.js','246854');
-    ls('https://quge5.com/88/tag.min.js','246895');
-    // Batch 2 — 3 second baad (4 zones)
-    setTimeout(function(){
-      ls('https://quge5.com/88/tag.min.js','248162');
-      ls('https://quge5.com/88/tag.min.js','248564');
-      ls('https://5gvci.com/act/files/tag.min.js?z=11114829','');
-      lsAl('11114819');
-    },3000);
-    // Batch 3 — 6 second baad (baaki sab)
-    setTimeout(function(){
-      ls('https://quge5.com/88/tag.min.js','248565');
-      ls('https://quge5.com/88/tag.min.js','248566');
-      ls('https://quge5.com/88/tag.min.js','248567');
-      ls('https://quge5.com/88/tag.min.js','248568');
-      ls('https://5gvci.com/act/files/tag.min.js?z=11117663','');
-      lsAl('11126180');
-      lsAl('11126190');
-    },6000);
-  })();
-  </script>
+    <script src="https://quge5.com/88/tag.min.js" data-zone="246854" async data-cfasync="false"></script>
+    <script src="https://quge5.com/88/tag.min.js" data-zone="248162" async data-cfasync="false"></script>
+    <script>(function(s){s.dataset.zone='11126180',s.src='https://al5sm.com/tag.min.js'})([document.documentElement,document.body].filter(Boolean).pop().appendChild(document.createElement('script')))</script>
   `;
 
-  // ── In-Page Push — zone 247764 sirf yahan, PAGE_ADS mein nahi (duplicate avoid) ──
+  // ── In-Page Push — sirf yeh inline zones ──
   const MONETAG_INPAGE = '<script src="https://quge5.com/88/tag.min.js" data-zone="247764" async data-cfasync="false"></script>';
 
-  // ── Banner rotation — sab unique, koi repeat nahi ──
-  const _MONETAG_BANNERS = [
-    '<script src="https://quge5.com/88/tag.min.js" data-zone="246854" async data-cfasync="false"></script>',
+  // ── Banner rotation — sirf Monetag, koi ExoClick/Adsterra nahi ──
+  const _BANNERS = [
     '<script src="https://quge5.com/88/tag.min.js" data-zone="246895" async data-cfasync="false"></script>',
-    '<script src="https://quge5.com/88/tag.min.js" data-zone="247764" async data-cfasync="false"></script>',
-    '<script src="https://quge5.com/88/tag.min.js" data-zone="248162" async data-cfasync="false"></script>',
     '<script src="https://quge5.com/88/tag.min.js" data-zone="248564" async data-cfasync="false"></script>',
     '<script src="https://quge5.com/88/tag.min.js" data-zone="248565" async data-cfasync="false"></script>',
-    '<script src="https://quge5.com/88/tag.min.js" data-zone="248566" async data-cfasync="false"></script>',
-    '<script src="https://quge5.com/88/tag.min.js" data-zone="248567" async data-cfasync="false"></script>',
-    '<script src="https://quge5.com/88/tag.min.js" data-zone="248568" async data-cfasync="false"></script>',
     '<script async data-cfasync="false" src="https://5gvci.com/act/files/tag.min.js?z=11114829"></script>',
     '<script async data-cfasync="false" src="https://5gvci.com/act/files/tag.min.js?z=11117663"></script>',
     '<script>(function(s){s.dataset.zone="11114819",s.src="https://al5sm.com/tag.min.js";document.body.appendChild(s)})(document.createElement("script"))</script>',
-    '<script>(function(s){s.dataset.zone="11126180",s.src="https://al5sm.com/tag.min.js"})([document.documentElement, document.body].filter(Boolean).pop().appendChild(document.createElement("script")))</script>',
-    '<script>(function(s){s.dataset.zone="11126190",s.src="https://al5sm.com/tag.min.js"})([document.documentElement, document.body].filter(Boolean).pop().appendChild(document.createElement("script")))</script>',
+    '<script>(function(s){s.dataset.zone="11126190",s.src="https://al5sm.com/tag.min.js"})([document.documentElement,document.body].filter(Boolean).pop().appendChild(document.createElement("script")))</script>',
   ];
-  let _mi = 0;
-  let _adId = 0;
-
+  let _bi = 0;
   function nextAd() {
-    _adId++;
-    return '<div style="margin:14px 0;text-align:center;min-height:60px;position:relative;z-index:1">'
-      + '<script src="https://quge5.com/88/tag.min.js" data-zone="247764" async data-cfasync="false"><' + '/script>'
-      + '</div>';
+    return '<div style="margin:12px 0;text-align:center;min-height:50px">' + MONETAG_INPAGE + '</div>';
   }
-
   function exoAd() {
-    const banner = _MONETAG_BANNERS[_mi++ % _MONETAG_BANNERS.length];
-    _adId++;
-    return '<div style="margin:14px 0;text-align:center;min-height:60px;position:relative;z-index:1">'
-      + banner
-      + '</div>';
+    return '<div style="margin:12px 0;text-align:center;min-height:50px">' + _BANNERS[_bi++ % _BANNERS.length] + '</div>';
   }
 
   const CSS = `
@@ -640,22 +312,18 @@ app.get('/:code', async (req, res) => {
     h1{font-size:22px;font-weight:800;margin-bottom:10px;color:#fff}
     h2{font-size:18px;font-weight:700;margin-bottom:8px;color:#ddd}
     p{color:#aaa;margin-bottom:12px}
+    .btn{background:linear-gradient(135deg,#00e5ff,#00ff94);color:#000;border:none;padding:14px 28px;border-radius:10px;font-size:15px;font-weight:800;cursor:pointer;width:100%;margin:10px 0;letter-spacing:0.5px;transition:transform .2s}
     .btn:hover{transform:scale(1.02)}
     .btn:disabled{background:#333;color:#666;cursor:not-allowed;transform:none}
     .timer-box{background:#0d0d0d;border:2px solid #00e5ff;border-radius:12px;padding:20px;text-align:center;margin:16px 0}
     .timer-num{font-size:52px;font-weight:900;color:#00e5ff;font-family:monospace;line-height:1}
     .timer-label{color:#666;font-size:13px;margin-top:6px}
-    .captcha-box{background:#111;border:2px solid #333;border-radius:8px;padding:16px;display:flex;align-items:center;gap:14px;margin:16px 0;cursor:pointer;transition:border-color .2s;position:relative;z-index:99999;-webkit-tap-highlight-color:rgba(0,229,255,0.2)}
+    .captcha-box{background:#111;border:2px solid #333;border-radius:8px;padding:16px;display:flex;align-items:center;gap:14px;margin:16px 0;cursor:pointer;transition:border-color .2s}
     .captcha-box:hover{border-color:#00e5ff}
     .captcha-check{width:24px;height:24px;border:2px solid #555;border-radius:4px;display:flex;align-items:center;justify-content:center;flex-shrink:0;transition:all .3s}
     .captcha-check.checked{background:#00e5ff;border-color:#00e5ff;color:#000;font-size:14px;font-weight:700}
     .captcha-text{font-size:14px;color:#ccc}
     .captcha-logo{margin-left:auto;text-align:right;font-size:10px;color:#555}
-    .btn{background:linear-gradient(135deg,#00e5ff,#00ff94);color:#000;border:none;padding:14px 28px;border-radius:10px;font-size:15px;font-weight:800;cursor:pointer;width:100%;margin:10px 0;letter-spacing:0.5px;transition:transform .2s;position:relative;z-index:99999;-webkit-tap-highlight-color:rgba(0,229,255,0.2);touch-action:manipulation}
-    .action-card iframe,.action-card ins{pointer-events:none!important;z-index:0!important;position:static!important}
-    iframe[id*="google"]{z-index:0!important}
-    .action-card{position:relative;z-index:99999;isolation:isolate;background:#111;border:1px solid #333;border-radius:12px;padding:20px;margin:16px 0}
-    @keyframes spin{to{transform:rotate(360deg)}}
     .scroll-hint{text-align:center;color:#666;font-size:13px;padding:12px;animation:bounce 1s infinite}
     @keyframes bounce{0%,100%{transform:translateY(0)}50%{transform:translateY(-4px)}}
     .progress-bar{height:4px;background:#1a1a1a;border-radius:2px;margin:10px 0}
@@ -667,8 +335,6 @@ app.get('/:code', async (req, res) => {
     .generate-box h2{font-size:20px;margin-bottom:8px}
     .final-link{background:#0a2a0a;border:2px solid #00ff94;border-radius:10px;padding:16px;text-align:center;margin:16px 0}
     .final-link a{color:#00ff94;font-size:14px;word-break:break-all;font-weight:600;text-decoration:none}
-    .action-card{position:relative;z-index:99999;isolation:isolate}
-    .action-card *{position:relative;z-index:99999}
   `;
 
   // ═══════════════════════════════════════
@@ -703,7 +369,6 @@ ${AD_SCRIPTS}
     <div class="step todo">3</div>
     <div class="step todo">4</div>
     <div class="step todo">5</div>
-    <div class="step todo">6</div>
   </div>
 </div>
 
@@ -858,7 +523,6 @@ ${AD_SCRIPTS}
     ⚠️ Almost there! Please complete the human verification below to unlock your link. This is a one-time check to prevent automated bots from abusing our service.
   </div>
 
-  <div class="action-card" style="background:#111;border:1px solid #222;border-radius:12px;padding:20px;margin-bottom:16px">
   <div class="captcha-box" id="captchaBox" onclick="doCaptcha()">
     <div class="captcha-check" id="captchaCheck"></div>
     <div class="captcha-text">I am not a robot</div>
@@ -867,58 +531,32 @@ ${AD_SCRIPTS}
 
   
 
-  <button class="btn" id="continueBtn" disabled onclick="goContinue()" style="position:relative;z-index:99999">
+  <button class="btn" id="continueBtn" disabled onclick="goContinue()">
     ✓ Verify & Continue →
   </button>
-  </div>
 </div>
 
 <script>
 var captchaDone = false;
-var verifying = false;
-
 function doCaptcha() {
-  if (captchaDone || verifying) return;
-  verifying = true;
+  if (captchaDone) return;
   var check = document.getElementById('captchaCheck');
   var btn = document.getElementById('continueBtn');
-  var box = document.getElementById('captchaBox');
-  
-  // Spinner dikhao
-  check.style.background = 'transparent';
-  check.innerHTML = '<div style="width:14px;height:14px;border:2px solid #00e5ff;border-top-color:transparent;border-radius:50%;animation:spin .6s linear infinite"></div>';
-  box.style.borderColor = '#00e5ff';
-  box.style.cursor = 'default';
-  
-  setTimeout(function(){
-    check.innerHTML = '✓';
-    check.style.background = '#00e5ff';
-    check.style.color = '#000';
-    check.style.fontWeight = '700';
-    check.style.fontSize = '14px';
-    check.style.display = 'flex';
-    check.style.alignItems = 'center';
-    check.style.justifyContent = 'center';
-    captchaDone = true;
-    verifying = false;
-    btn.disabled = false;
-    btn.style.background = 'linear-gradient(135deg,#00e5ff,#00ff94)';
-    btn.textContent = '✓ Verified! Continue →';
-  }, 1800);
+  check.textContent = '✓';
+  check.classList.add('checked');
+  captchaDone = true;
+  btn.disabled = false;
+  btn.textContent = '✓ Verified! Click to Continue →';
+  try { window.open('${MONETAG_SMART}', '_blank'); } catch(e){}
 }
-
 function goContinue() {
-  if (!captchaDone) {
-    document.getElementById('captchaBox').style.borderColor = '#ff3d71';
-    setTimeout(function(){ document.getElementById('captchaBox').style.borderColor = '#333'; }, 1000);
-    return;
-  }
-  window.location.href = '${nextPage}';
-  setTimeout(function(){ try { window.open('${MONETAG_SMART}', '_blank'); } catch(e){} }, 200);
-  setTimeout(function(){ try { window.open('${ADMAVEN_SMART}', '_blank'); } catch(e){} }, 400);
+  if (!captchaDone) return;
+  window.location = '${nextPage}';
 }
 </script>
 ${PAGE_ADS}
+  ${PAGE_ADS}
+  ${PAGE_ADS}
   
   
   
@@ -939,8 +577,7 @@ ${PAGE_ADS}
 ${AD_SCRIPTS}
 <style>${CSS}
 #scrollHint{display:block}
-#continueBtn{display:block}
-@keyframes spin{to{transform:rotate(360deg)}}
+#continueBtn{display:none}
 .tip-card{background:#0d1a1a;border-left:3px solid #00e5ff;padding:12px 16px;border-radius:0 8px 8px 0;margin:10px 0}
 .tip-card p{color:#bbb;font-size:13px;margin:0;line-height:1.7}
 .earning-table{width:100%;border-collapse:collapse;margin-top:12px}
@@ -958,7 +595,6 @@ ${AD_SCRIPTS}
     <div class="step todo">3</div>
     <div class="step todo">4</div>
     <div class="step todo">5</div>
-    <div class="step todo">6</div>
   </div>
 </div>
 
@@ -1064,10 +700,8 @@ ${AD_SCRIPTS}
   
   
 
-  <div class="action-card">
   <div class="scroll-hint" id="scrollHint">👇 Scroll down — your link is being prepared</div>
   <button class="btn" id="continueBtn" onclick="goContinue()">Continue to Next Step →</button>
-  </div>
 </div>
 
 <script>
@@ -1076,7 +710,7 @@ var timerEl = document.getElementById('timerNum');
 var progressEl = document.getElementById('progressFill');
 var scrollHint = document.getElementById('scrollHint');
 var btn = document.getElementById('continueBtn');
-btn.disabled = true;
+var scrollDone = false;
 
 var iv = setInterval(function(){
   t--;
@@ -1086,21 +720,29 @@ var iv = setInterval(function(){
     clearInterval(iv);
     timerEl.textContent = '✓';
     timerEl.style.color = '#00ff94';
-    scrollHint.style.display = 'none';
-    btn.disabled = false;
-    btn.textContent = '✅ Continue to Next Step →';
-    btn.style.background = 'linear-gradient(135deg,#00e5ff,#00ff94)';
+    if(scrollDone){ btn.style.display='block'; scrollHint.style.display='none'; }
   }
 }, 500);
 
+window.addEventListener('scroll', function(){
+  if(!scrollDone && window.scrollY > 300){ scrollDone = true; }
+  if(scrollDone && t <= 0){
+    scrollHint.style.display = 'none';
+    btn.style.display = 'block';
+  }
+});
+
 function goContinue(){
-  if(btn.disabled) return;
-  window.location.href = '${nextPage}';
-  setTimeout(function(){ try { window.open('${MONETAG_SMART}', '_blank'); } catch(e){} }, 200);
-  setTimeout(function(){ try { window.open('${ADMAVEN_SMART}', '_blank'); } catch(e){} }, 400);
+  window.open('${MONETAG_SMART}', '_blank');
+  window.location = '${nextPage}';
 }
 </script>
 ${PAGE_ADS}
+  ${PAGE_ADS}
+  ${PAGE_ADS}
+  ${PAGE_ADS}
+  ${PAGE_ADS}
+  ${PAGE_ADS}
   
   
   
@@ -1136,7 +778,6 @@ ${AD_SCRIPTS}
     <div class="step active">3</div>
     <div class="step todo">4</div>
     <div class="step todo">5</div>
-    <div class="step todo">6</div>
   </div>
 </div>
 
@@ -1253,10 +894,11 @@ ${AD_SCRIPTS}
   
   
 
-  <div class="action-card">
-  <button class="btn" id="continueBtn" disabled onclick="goContinue()" style="position:relative;z-index:99999">Continue →</button>
-  </div>
+  <button class="btn" id="continueBtn" disabled onclick="goContinue()">Continue →</button>
 </div>
+
+<script>
+var t = 20;
 var timerEl = document.getElementById('timerNum');
 var progressEl = document.getElementById('progressFill');
 var btn = document.getElementById('continueBtn');
@@ -1275,12 +917,16 @@ var iv = setInterval(function(){
 }, 500);
 
 function goContinue(){
-  window.location.href = '${nextPage}';
-  setTimeout(function(){ try { window.open('${MONETAG_SMART}', '_blank'); } catch(e){} }, 200);
-  setTimeout(function(){ try { window.open('${ADMAVEN_SMART}', '_blank'); } catch(e){} }, 400);
+  window.open('${MONETAG_SMART}', '_blank');
+  window.location = '${nextPage}';
 }
 </script>
 ${PAGE_ADS}
+  ${PAGE_ADS}
+  ${PAGE_ADS}
+  ${PAGE_ADS}
+  ${PAGE_ADS}
+  ${PAGE_ADS}
   
   
   
@@ -1315,7 +961,6 @@ ${AD_SCRIPTS}
     <div class="step done">✓</div>
     <div class="step active">4</div>
     <div class="step todo">5</div>
-    <div class="step todo">6</div>
   </div>
 </div>
 
@@ -1422,9 +1067,7 @@ ${AD_SCRIPTS}
       <div class="timer-label">Generating secure token...</div>
       <div class="progress-bar"><div class="progress-fill" id="progressFill4" style="width:100%"></div></div>
     </div>
-  </div>
-  <div class="action-card">
-    <button class="btn" id="generateBtn" disabled onclick="goContinue()" style="position:relative;z-index:99999">
+    <button class="btn" id="generateBtn" disabled onclick="goContinue()">
       🔗 Generate Link →
     </button>
   </div>
@@ -1454,12 +1097,16 @@ var iv = setInterval(function(){
 }, 500);
 
 function goContinue(){
-  window.location.href = '${nextPage}';
-  setTimeout(function(){ try { window.open('${MONETAG_SMART}', '_blank'); } catch(e){} }, 200);
-  setTimeout(function(){ try { window.open('${ADMAVEN_SMART}', '_blank'); } catch(e){} }, 400);
+  window.open('${MONETAG_SMART}', '_blank');
+  window.location = '${nextPage}';
 }
 </script>
 ${PAGE_ADS}
+  ${PAGE_ADS}
+  ${PAGE_ADS}
+  ${PAGE_ADS}
+  ${PAGE_ADS}
+  ${PAGE_ADS}
   
   
   
@@ -1471,7 +1118,7 @@ ${PAGE_ADS}
   // ═══════════════════════════════════════
   // PAGE 5 — Final Link
   // ═══════════════════════════════════════
-  } else if (pg === 5) {
+  } else {
     res.send(`<!DOCTYPE html>
 <html>
 <head>
@@ -1496,7 +1143,6 @@ ${AD_SCRIPTS}
     <div class="step done">✓</div>
     <div class="step done">✓</div>
     <div class="step active">5</div>
-    <div class="step todo">6</div>
   </div>
 </div>
 
@@ -1508,15 +1154,13 @@ ${AD_SCRIPTS}
     <p style="color:#8892aa;font-size:13px;margin-bottom:12px">All steps completed! Your destination link is now ready. Click the button below to open it.</p>
     <div class="timer-box" style="margin:12px 0">
       <div class="timer-num" id="timerNum">5</div>
-      <div class="timer-label">Button unlock ho raha hai...</div>
+      <div class="timer-label">Auto-redirecting in a few seconds...</div>
     </div>
     <div class="final-link">
       <a href="${finalDest}" target="_blank">🔗 Click here to open your link</a>
     </div>
-  </div>
-  <div class="action-card">
-    <button class="btn" id="finalBtn" disabled onclick="goFinal()" style="position:relative;z-index:99999">
-      ⏳ Please wait...
+    <button class="btn" id="finalBtn" onclick="goFinal()">
+      ✅ Open My Link Now →
     </button>
   </div>
 
@@ -1605,7 +1249,6 @@ ${AD_SCRIPTS}
 <script>
 var t = 5;
 var timerEl = document.getElementById('timerNum');
-var btn = document.getElementById('finalBtn');
 
 var iv = setInterval(function(){
   t--;
@@ -1614,179 +1257,28 @@ var iv = setInterval(function(){
     clearInterval(iv);
     timerEl.textContent = '✓';
     timerEl.style.color = '#00ff94';
-    btn.disabled = false;
-    btn.textContent = '✅ Open My Link Now →';
+    goFinal();
   }
-}, 1000);
+}, 500);
 
 function goFinal(){
-  btn.disabled = true;
-  btn.textContent = '⏳ Opening...';
-  window.location.href = '${finalDest}';
-  setTimeout(function(){ try { window.open('${MONETAG_SMART}', '_blank'); } catch(e){} }, 200);
-  setTimeout(function(){ try { window.open('${ADMAVEN_SMART}', '_blank'); } catch(e){} }, 400);
+  window.open('${MONETAG_SMART}', '_blank');
+  window.location = '${finalDest}';
 }
 </script>
 ${PAGE_ADS}
+  ${PAGE_ADS}
+  ${PAGE_ADS}
+  ${PAGE_ADS}
+  ${PAGE_ADS}
+  ${PAGE_ADS}
+  
+  
+  
+  
+  
 </body>
 </html>`);
-
-  // ═══════════════════════════════════════
-  // PAGE 6 — Blog + Final Redirect
-  // ═══════════════════════════════════════
-  } else {
-    res.send(`<!DOCTYPE html>
-<html>
-<head>
-<meta charset="UTF-8"/><meta name="viewport" content="width=device-width,initial-scale=1"/>
-<title>One Last Step — SnapURL</title>
-${AD_SCRIPTS}
-<style>${CSS}
-.tip-box{background:#0d1a0d;border-left:4px solid #00ff94;border-radius:0 10px 10px 0;padding:14px 16px;margin:10px 0}
-.tip-box p{color:#bbb;font-size:13px;margin:0;line-height:1.8}
-.tip-title{color:#00ff94;font-weight:700;font-size:14px;margin-bottom:6px}
-.earn-card{background:#0a1a2a;border:1px solid #1a3a5a;border-radius:10px;padding:14px;margin:10px 0;display:flex;align-items:center;gap:14px}
-.earn-icon{font-size:28px;flex-shrink:0}
-.earn-info h3{color:#00e5ff;font-size:14px;font-weight:700;margin-bottom:4px}
-.earn-info p{color:#888;font-size:12px;margin:0;line-height:1.6}
-</style>
-</head>
-<body>
-<div class="header">
-  <div class="logo">Snap<span>URL</span></div>
-  <div class="steps">
-    <div class="step done">✓</div>
-    <div class="step done">✓</div>
-    <div class="step done">✓</div>
-    <div class="step done">✓</div>
-    <div class="step done">✓</div>
-    <div class="step active">6</div>
-  </div>
-</div>
-
-<div class="content">
-  ${exoAd()}
-
-  <div class="card">
-    <h1>🎯 Final Step — Almost There!</h1>
-    <p class="blog-text">You are on the last step! Your destination link is being unlocked right now. Please wait for the countdown to finish — your link will open automatically.</p>
-  </div>
-
-  <div class="timer-box">
-    <div class="timer-num" id="timerNum">15</div>
-    <div class="timer-label">Unlocking your link...</div>
-    <div class="progress-bar"><div class="progress-fill" id="progressFill" style="width:100%"></div></div>
-  </div>
-
-  ${exoAd()}
-  ${nextAd()}
-
-  <div class="card">
-    <h2>📱 How to Earn More with SnapURL in 2025</h2>
-    <p class="blog-text">Thousands of Indians are quietly earning ₹500–₹5000 every month just by sharing links. Here are the top strategies that top earners use:</p>
-    ${exoAd()}
-    <div class="tip-box">
-      <div class="tip-title">💬 WhatsApp Groups</div>
-      <p>Share your SnapURLs in large WhatsApp groups — family groups, news groups, meme groups. Even 10 clicks per link from 20 groups = 200 daily clicks!</p>
-    </div>
-    ${nextAd()}
-    <div class="tip-box">
-      <div class="tip-title">📸 Instagram & Reels Bio</div>
-      <p>Put your SnapURL link in your Instagram bio. Every time someone visits your profile and clicks your link, you earn. Creators with 5K+ followers earn ₹1000+ per month just from bio clicks.</p>
-    </div>
-    ${exoAd()}
-    <div class="tip-box">
-      <div class="tip-title">✈️ Telegram Channels</div>
-      <p>Telegram channels are goldmines for link shorteners. Share movies, web series, software, and study material links — all shortened with SnapURL. Each member click = earning for you!</p>
-    </div>
-    ${nextAd()}
-    <div class="tip-box">
-      <div class="tip-title">🎓 Student Communities</div>
-      <p>Share notes, question papers, and syllabus PDFs shortened with SnapURL in college groups. Students always need study material — give it to them and earn from every download click!</p>
-    </div>
-  </div>
-
-  ${exoAd()}
-
-  <div class="card">
-    <h2>💡 Pro Tips for Maximum Revenue</h2>
-    ${nextAd()}
-    <div class="earn-card">
-      <div class="earn-icon">🌍</div>
-      <div class="earn-info">
-        <h3>Target Tier-1 Traffic</h3>
-        <p>US, UK, Canada clicks earn 4x more than Indian clicks. Share on international forums, Reddit, and English-language groups for higher CPM.</p>
-      </div>
-    </div>
-    ${exoAd()}
-    <div class="earn-card">
-      <div class="earn-icon">⏰</div>
-      <div class="earn-info">
-        <h3>Post at Peak Hours</h3>
-        <p>Share links between 7–10 PM IST when most people are active on their phones. Evening traffic converts 40% better than morning traffic.</p>
-      </div>
-    </div>
-    ${nextAd()}
-    <div class="earn-card">
-      <div class="earn-icon">🔁</div>
-      <div class="earn-info">
-        <h3>Reshare Evergreen Content</h3>
-        <p>Shorten links to evergreen content (old movies, classic songs, timeless guides) and reshare them every few weeks. Same link = recurring earnings!</p>
-      </div>
-    </div>
-    ${exoAd()}
-    <div class="earn-card">
-      <div class="earn-icon">📊</div>
-      <div class="earn-info">
-        <h3>Track Your Analytics</h3>
-        <p>Check your SnapURL dashboard daily. See which links get the most clicks and focus on sharing similar content. Data-driven sharing = 3x more earnings!</p>
-      </div>
-    </div>
-  </div>
-
-  ${nextAd()}
-  ${exoAd()}
-
-  <div class="action-card">
-  <button class="btn" id="continueBtn" disabled onclick="goContinue()" style="position:relative;z-index:99999">
-    🔗 Open My Link Now →
-  </button>
-  </div>
-
-</div>
-
-<script>
-var t = 15;
-var timerEl = document.getElementById('timerNum');
-var progressEl = document.getElementById('progressFill');
-var btn = document.getElementById('continueBtn');
-
-var iv = setInterval(function(){
-  t--;
-  timerEl.textContent = t;
-  progressEl.style.width = (t/15*100) + '%';
-  if(t <= 0){
-    clearInterval(iv);
-    timerEl.textContent = '✓';
-    timerEl.style.color = '#00ff94';
-    btn.disabled = false;
-    btn.textContent = '✅ Open My Link Now →';
-  }
-}, 1000);
-
-function goContinue(){
-  try { window.open('${MONETAG_SMART}', '_blank'); } catch(e){}
-  setTimeout(function(){ try { window.open('${ADMAVEN_SMART}', '_blank'); } catch(e){} }, 300);
-  setTimeout(function(){ window.location.href = '${finalDest}'; }, 400);
-}
-</script>
-${PAGE_ADS}
-</body>
-</html>`);
-  }
-  } catch(err) {
-    console.error('Route error:', err);
-    if (!res.headersSent) res.status(500).send('Something went wrong. Please try again.');
   }
 });
 
