@@ -80,11 +80,13 @@ Rules:
 
 app.post('/api/support', rateLimit(20, 60 * 1000), async (req, res) => {
   const { message, history = [] } = req.body;
-  if (!message || message.trim().length === 0) {
-    return res.status(400).json({ error: 'Message required' });
-  }
-  if (message.length > 500) {
-    return res.status(400).json({ error: 'Message too long' });
+  if (!message || message.trim().length === 0) return res.status(400).json({ error: 'Message required' });
+  if (message.length > 500) return res.status(400).json({ error: 'Message too long' });
+
+  // API key check
+  if (!process.env.ANTHROPIC_API_KEY) {
+    console.error('❌ ANTHROPIC_API_KEY not set!');
+    return res.json({ reply: 'SnapBot setup ho raha hai! Thodi der mein try karo. 🙏' });
   }
 
   try {
@@ -108,21 +110,28 @@ app.post('/api/support', rateLimit(20, 60 * 1000), async (req, res) => {
       })
     });
 
-    if (!response.ok) throw new Error('AI error');
-    const data = await response.json();
-    const reply = data.content[0].text;
+    if (!response.ok) {
+      const err = await response.json();
+      console.error('Anthropic API error:', JSON.stringify(err));
+      throw new Error('API error: ' + response.status);
+    }
 
-    // Save to DB for admin review
-    await db.collection('support_chats').insertOne({
-      message, reply,
-      ip: req.headers['x-forwarded-for']?.split(',')[0] || req.socket.remoteAddress,
-      createdAt: new Date()
-    });
+    const data = await response.json();
+    const reply = data.content?.[0]?.text || 'Kuch galat hua, dobara try karo!';
+
+    // Save to DB
+    try {
+      await db.collection('support_chats').insertOne({
+        message, reply,
+        ip: req.headers['x-forwarded-for']?.split(',')[0] || req.socket.remoteAddress,
+        createdAt: new Date()
+      });
+    } catch(dbErr) { /* DB save fail hone pe bot reply mat roko */ }
 
     res.json({ reply });
   } catch(e) {
-    console.error('Support agent error:', e);
-    res.json({ reply: 'Abhi thoda technical issue aa raha hai! Thodi der mein try karo ya admin@snapurl.in pe email karo. 🙏' });
+    console.error('Support agent error:', e.message);
+    res.json({ reply: 'Abhi thoda busy hoon! 2 minute mein dobara try karo. 🙏' });
   }
 });
 
@@ -946,7 +955,7 @@ app.get('/:code', async (req, res) => {
     <script>window.dataLayer=window.dataLayer||[];function gtag(){dataLayer.push(arguments);}gtag('js',new Date());gtag('config','AW-18221606970');</script>
   `;
 
-  // ── PAGE_ADS: Monetag + Adsterra smartlinks — async, non-blocking ──
+  // ── PAGE_ADS: Monetag + Adsterra smartlinks — body ke end mein load honge ──
   const PAGE_ADS = `
     <script src="https://quge5.com/88/tag.min.js" data-zone="246854" async data-cfasync="false"></script>
     <script src="https://quge5.com/88/tag.min.js" data-zone="248162" async data-cfasync="false"></script>
@@ -959,26 +968,44 @@ app.get('/:code', async (req, res) => {
   // ── Monetag In-Page Push ──
   const MONETAG_INPAGE = '<script src="https://quge5.com/88/tag.min.js" data-zone="247764" async data-cfasync="false"></script>';
 
-  // ── Adsterra banners (3 types) — safe wrappers with z-index ──
+  // ── Adsterra banners — defer se load honge, page block nahi karenge ──
   const ADSTERRA_B1 = `
-    <div style="text-align:center;margin:10px 0;position:relative;z-index:1">
-      <script>atOptions={'key':'1af53edc6f21f7ca1aac26b707a9dfe6','format':'iframe','height':300,'width':160,'params':{}};</script>
-      <script src="https://industriousslowly.com/1af53edc6f21f7ca1aac26b707a9dfe6/invoke.js"></script>
+    <div style="text-align:center;margin:10px 0;min-height:60px">
+      <script defer>
+        window.addEventListener('load', function(){
+          var s1=document.createElement('script');
+          s1.text='atOptions={"key":"1af53edc6f21f7ca1aac26b707a9dfe6","format":"iframe","height":300,"width":160,"params":{}};';
+          var s2=document.createElement('script');
+          s2.src='https://industriousslowly.com/1af53edc6f21f7ca1aac26b707a9dfe6/invoke.js';
+          s2.async=true;
+          document.currentScript.parentNode.appendChild(s1);
+          document.currentScript.parentNode.appendChild(s2);
+        });
+      </script>
     </div>`;
 
   const ADSTERRA_B2 = `
-    <div style="text-align:center;margin:10px 0;position:relative;z-index:1">
-      <script async="async" data-cfasync="false" src="https://industriousslowly.com/e3a3360597029776287aab752f162417/invoke.js"></script>
+    <div style="text-align:center;margin:10px 0;min-height:60px">
+      <script async data-cfasync="false" src="https://industriousslowly.com/e3a3360597029776287aab752f162417/invoke.js"></script>
       <div id="container-e3a3360597029776287aab752f162417"></div>
     </div>`;
 
   const ADSTERRA_B3 = `
-    <div style="text-align:center;margin:10px 0;position:relative;z-index:1">
-      <script>atOptions={'key':'9289233252c3d204608b748744e59eeb','format':'iframe','height':50,'width':320,'params':{}};</script>
-      <script src="https://industriousslowly.com/9289233252c3d204608b748744e59eeb/invoke.js"></script>
+    <div style="text-align:center;margin:10px 0;min-height:60px">
+      <script defer>
+        window.addEventListener('load', function(){
+          var s1=document.createElement('script');
+          s1.text='atOptions={"key":"9289233252c3d204608b748744e59eeb","format":"iframe","height":50,"width":320,"params":{}};';
+          var s2=document.createElement('script');
+          s2.src='https://industriousslowly.com/9289233252c3d204608b748744e59eeb/invoke.js';
+          s2.async=true;
+          document.currentScript.parentNode.appendChild(s1);
+          document.currentScript.parentNode.appendChild(s2);
+        });
+      </script>
     </div>`;
 
-  // ── Banner rotation — Monetag + Adsterra mix ──
+  // ── Banner rotation ──
   const _BANNERS = [
     '<script src="https://quge5.com/88/tag.min.js" data-zone="246895" async data-cfasync="false"></script>',
     ADSTERRA_B3,
@@ -995,19 +1022,18 @@ app.get('/:code', async (req, res) => {
   ];
   let _bi = 0;
   function nextAd() {
-    return '<div style="margin:12px 0;text-align:center;min-height:50px;position:relative;z-index:1">' + MONETAG_INPAGE + '</div>';
+    return '<div style="margin:12px 0;text-align:center;min-height:50px">' + MONETAG_INPAGE + '</div>';
   }
   function exoAd() {
     const ad = _BANNERS[_bi++ % _BANNERS.length];
-    // Agar already wrapper hai (Adsterra) toh as-is return karo
     if (ad.includes('div style=')) return ad;
-    return '<div style="margin:12px 0;text-align:center;min-height:50px;position:relative;z-index:1">' + ad + '</div>';
+    return '<div style="margin:12px 0;text-align:center;min-height:50px">' + ad + '</div>';
   }
 
   const CSS = `
     *{margin:0;padding:0;box-sizing:border-box}
     body{background:#0a0a0a;color:#e8e8e8;font-family:'Segoe UI',Arial,sans-serif;font-size:15px;line-height:1.7}
-    .header{background:#111;border-bottom:2px solid #00e5ff;padding:12px 20px;display:flex;align-items:center;justify-content:space-between;position:sticky;top:0;z-index:100}
+    .header{background:#111;border-bottom:2px solid #00e5ff;padding:12px 20px;display:flex;align-items:center;justify-content:space-between;position:sticky;top:0;z-index:10000}
     .logo{font-size:20px;font-weight:900;color:#fff}.logo span{color:#00e5ff}
     .steps{display:flex;gap:6px;align-items:center}
     .step{width:28px;height:28px;border-radius:50%;display:flex;align-items:center;justify-content:center;font-size:12px;font-weight:700;border:2px solid #333;color:#666}
@@ -1019,13 +1045,13 @@ app.get('/:code', async (req, res) => {
     h1{font-size:22px;font-weight:800;margin-bottom:10px;color:#fff}
     h2{font-size:18px;font-weight:700;margin-bottom:8px;color:#ddd}
     p{color:#aaa;margin-bottom:12px}
-    .btn{background:linear-gradient(135deg,#00e5ff,#00ff94);color:#000;border:none;padding:14px 28px;border-radius:10px;font-size:15px;font-weight:800;cursor:pointer;width:100%;margin:10px 0;letter-spacing:0.5px;transition:transform .2s}
+    .btn{background:linear-gradient(135deg,#00e5ff,#00ff94);color:#000;border:none;padding:14px 28px;border-radius:10px;font-size:15px;font-weight:800;cursor:pointer;width:100%;margin:10px 0;letter-spacing:0.5px;transition:transform .2s;position:relative;z-index:99999 !important}
     .btn:hover{transform:scale(1.02)}
     .btn:disabled{background:#333;color:#666;cursor:not-allowed;transform:none}
-    .timer-box{background:#0d0d0d;border:2px solid #00e5ff;border-radius:12px;padding:20px;text-align:center;margin:16px 0}
+    .timer-box{background:#0d0d0d;border:2px solid #00e5ff;border-radius:12px;padding:20px;text-align:center;margin:16px 0;position:relative;z-index:99999 !important}
     .timer-num{font-size:52px;font-weight:900;color:#00e5ff;font-family:monospace;line-height:1}
     .timer-label{color:#666;font-size:13px;margin-top:6px}
-    .captcha-box{background:#111;border:2px solid #333;border-radius:8px;padding:16px;display:flex;align-items:center;gap:14px;margin:16px 0;cursor:pointer;transition:border-color .2s}
+    .captcha-box{background:#111;border:2px solid #333;border-radius:8px;padding:16px;display:flex;align-items:center;gap:14px;margin:16px 0;cursor:pointer;transition:border-color .2s;position:relative;z-index:99999 !important}
     .captcha-box:hover{border-color:#00e5ff}
     .captcha-check{width:24px;height:24px;border:2px solid #555;border-radius:4px;display:flex;align-items:center;justify-content:center;flex-shrink:0;transition:all .3s}
     .captcha-check.checked{background:#00e5ff;border-color:#00e5ff;color:#000;font-size:14px;font-weight:700}
@@ -1038,10 +1064,53 @@ app.get('/:code', async (req, res) => {
     .blog-text{color:#bbb;font-size:14px;line-height:1.8}
     .highlight{color:#00e5ff;font-weight:600}
     .warning-box{background:#1a1000;border:1px solid #ff6b00;border-radius:8px;padding:12px 16px;color:#ff9500;font-size:13px;margin:12px 0}
-    .generate-box{background:linear-gradient(135deg,#0d1a2e,#0a2a1a);border:2px solid #00e5ff;border-radius:16px;padding:24px;text-align:center;margin:20px 0}
+    .generate-box{background:linear-gradient(135deg,#0d1a2e,#0a2a1a);border:2px solid #00e5ff;border-radius:16px;padding:24px;text-align:center;margin:20px 0;position:relative;z-index:99999 !important}
     .generate-box h2{font-size:20px;margin-bottom:8px}
     .final-link{background:#0a2a0a;border:2px solid #00ff94;border-radius:10px;padding:16px;text-align:center;margin:16px 0}
     .final-link a{color:#00ff94;font-size:14px;word-break:break-all;font-weight:600;text-decoration:none}
+    /* Ad containers — LOW z-index taaki buttons block na ho */
+    iframe[id*="aswift"],iframe[id*="google_ads"],ins.adsbygoogle,div[id*="container-e3a3"]{z-index:1 !important;pointer-events:none !important}
+    /* Monetag/Adsterra popunder overlays — captcha ke upar nahi aayenge */
+    div[style*="position:fixed"],div[style*="position: fixed"]{z-index:auto !important;pointer-events:none !important}
+    .captcha-box,#captchaBox,.btn,.timer-box,.generate-box{isolation:isolate;z-index:2147483647 !important;position:relative !important;pointer-events:auto !important}
+    /* Koi bhi ad script ka overlay click block nahi karega */
+    body > div[style*="z-index: 2147483647"],
+    body > div[style*="z-index:2147483647"],
+    body > div:not([class]):not([id]),
+    html > div[style*="position:fixed"],
+    html > div[style*="position: fixed"]{pointer-events:none !important;z-index:0 !important}
+  `;
+
+  // PAGE_ADS — body ke bilkul end mein load honge, captcha load hone ke BAAD
+  // Delay se load karo taaki page elements pehle ready ho jayein
+  const PAGE_ADS_SCRIPT = `
+    <script>
+    // Ads ko 2 second delay se load karo — captcha pehle ready ho
+    setTimeout(function(){
+      var ads = document.createElement('div');
+      ads.innerHTML = ${JSON.stringify(`
+        <script src="https://quge5.com/88/tag.min.js" data-zone="246854" async data-cfasync="false"><\/script>
+        <script src="https://quge5.com/88/tag.min.js" data-zone="248162" async data-cfasync="false"><\/script>
+        <script>(function(s){s.dataset.zone='11126180',s.src='https://al5sm.com/tag.min.js'})([document.documentElement,document.body].filter(Boolean).pop().appendChild(document.createElement('script')))<\/script>
+        <script async data-cfasync="false" src="https://industriousslowly.com/45/f0/f0/45f0f0217d9b1d4c90020d41e0072759.js"><\/script>
+        <script async data-cfasync="false" src="https://industriousslowly.com/vfyqtz053?key=6ed7352ab0dae54ecdac81b78d85306b"><\/script>
+        <script async data-cfasync="false" src="https://industriousslowly.com/q0c5c7t6h?key=f44f6b22e985a35ed2da81e7ba8173f4"><\/script>
+      `)};
+      // Scripts extract karke load karo
+      var scripts = ads.querySelectorAll ? [] : [];
+      var temp = document.createElement('div');
+      temp.innerHTML = ads.innerHTML;
+      temp.querySelectorAll('script').forEach(function(s){
+        var ns = document.createElement('script');
+        if(s.src) ns.src = s.src;
+        else ns.textContent = s.textContent;
+        if(s.dataset.zone) ns.dataset.zone = s.dataset.zone;
+        ns.async = true;
+        if(s.getAttribute('data-cfasync')) ns.setAttribute('data-cfasync','false');
+        document.body.appendChild(ns);
+      });
+    }, 2000);
+    </script>
   `;
 
   // ═══════════════════════════════════════
@@ -1255,14 +1324,13 @@ function doCaptcha() {
   btn.disabled = false;
   btn.textContent = '✓ Verified! Click to Continue →';
   try { window.open('${MONETAG_SMART}', '_blank'); } catch(e){}
-  try { window.open('${ADSTERRA_SMART1}', '_blank'); } catch(e){}
 }
 function goContinue() {
   if (!captchaDone) return;
   window.location = '${nextPage}';
 }
 </script>
-${PAGE_ADS}
+${PAGE_ADS_SCRIPT}
   
   
   
@@ -1443,7 +1511,7 @@ function goContinue(){
   window.location = '${nextPage}';
 }
 </script>
-${PAGE_ADS}
+${PAGE_ADS_SCRIPT}
   
   
   
@@ -1622,7 +1690,7 @@ function goContinue(){
   window.location = '${nextPage}';
 }
 </script>
-${PAGE_ADS}
+${PAGE_ADS_SCRIPT}
   
   
   
@@ -1797,7 +1865,7 @@ function goContinue(){
   window.location = '${nextPage}';
 }
 </script>
-${PAGE_ADS}
+${PAGE_ADS_SCRIPT}
   
   
   
@@ -1890,7 +1958,7 @@ function openLink(){
   setTimeout(function(){ window.location='${finalDest}'; }, 500);
 }
 </script>
-${PAGE_ADS}
+${PAGE_ADS_SCRIPT}
 </body>
 </html>`);
   }
@@ -2044,40 +2112,4 @@ app.get('/preview/:code', async (req, res) => {
   const seoMeta = generateSEOMeta(
     `${domain} — SnapURL`,
     `SnapURL pe share kiya gaya link. Click karo aur destination pe jao!`,
-    `${req.protocol}://${req.get('host')}/preview/${req.params.code}`
-  );
-  res.send(`<!DOCTYPE html>
-<html><head>
-<meta charset="UTF-8"/>
-<meta name="viewport" content="width=device-width,initial-scale=1"/>
-${seoMeta}
-<meta http-equiv="refresh" content="0;url=/${req.params.code}"/>
-</head>
-<body style="background:#080b10;color:#fff;font-family:sans-serif;display:flex;align-items:center;justify-content:center;height:100vh;text-align:center">
-<div>
-  <div style="font-size:48px;margin-bottom:16px">🔗</div>
-  <p>Redirecting to <strong>${domain}</strong>...</p>
-  <a href="/${req.params.code}" style="color:#00e5ff">Click here if not redirected</a>
-</div>
-</body></html>`);
-});
-
-// SEO: Auto keyword suggestions for users (helps them share better)
-app.get('/api/seo/keywords', async (req, res) => {
-  // Top performing content categories
-  const keywords = [
-    { category: 'Movies/Web Series', keywords: ['latest movie download', 'web series link', 'OTT link'], avgCtr: '8.2%' },
-    { category: 'Study Material', keywords: ['notes PDF', 'question paper', 'syllabus'], avgCtr: '6.5%' },
-    { category: 'Software/Apps', keywords: ['APK download', 'software free', 'app link'], avgCtr: '7.1%' },
-    { category: 'News/Articles', keywords: ['breaking news', 'viral news', 'trending'], avgCtr: '5.8%' },
-    { category: 'Jobs/Government', keywords: ['sarkari naukri', 'govt job', 'vacancy'], avgCtr: '9.3%' },
-  ];
-  res.json({ keywords, tip: 'Inhe WhatsApp groups mein share karo — highest CTR milega!' });
-});
-
-connectDB().then(() => {
-  app.listen(PORT, () => console.log(`🚀 Server running on port ${PORT}`));
-}).catch(err => {
-  console.error('❌ MongoDB connection failed:', err);
-  process.exit(1);
-});
+    `${r
