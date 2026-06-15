@@ -7,10 +7,10 @@ const PORT = process.env.PORT || 3000;
 const MONGODB_URI = process.env.MONGODB_URI;
 
 const CONFIG = {
-  RATE_PER_1000_IN: 1.5,
-  RATE_PER_1000_US: 12,
-  RATE_PER_1000_OTHER: 2,
-  RATE_PER_1000: 1.05,
+  RATE_PER_1000_IN: 1.4,   // India
+  RATE_PER_1000_US: 12,    // US/UK/AU
+  RATE_PER_1000_OTHER: 2,  // Other countries
+  RATE_PER_1000: 1.04,      // Default rate
   MIN_WITHDRAW: 5,
   ADMIN_USER: process.env.ADMIN_USER || 'admin',
   ADMIN_PASS: process.env.ADMIN_PASS || 'snapurl@admin123'
@@ -30,131 +30,38 @@ app.use(express.static(path.join(__dirname)));
 function hash(str) { return crypto.createHash('sha256').update(str).digest('hex'); }
 function randCode(len=6) { return Math.random().toString(36).slice(2, 2+len); }
 
-// ── Rate Limiter ──
-const _rl = new Map();
-function rateLimit(maxReq, windowMs) {
-  return (req, res, next) => {
-    const ip = req.headers['x-forwarded-for']?.split(',')[0].trim() || req.socket.remoteAddress || 'unknown';
-    const key = ip + ':' + req.path;
-    const now = Date.now();
-    const entry = _rl.get(key) || { count: 0, start: now };
-    if (now - entry.start > windowMs) { entry.count = 0; entry.start = now; }
-    entry.count++;
-    _rl.set(key, entry);
-    if (entry.count > maxReq) {
-      return res.status(429).json({ error: 'Too many requests! Thoda ruko aur dobara try karo.' });
-    }
-    next();
-  };
-}
-setInterval(() => {
-  const now = Date.now();
-  for (const [k, v] of _rl.entries()) {
-    if (now - v.start > 60 * 60 * 1000) _rl.delete(k);
-  }
-}, 10 * 60 * 1000);
-
-// ══════════════════════════════════════════
-// 🤖 AUTO SUPPORT AGENT — Claude AI powered
-// ══════════════════════════════════════════
-const SUPPORT_SYSTEM_PROMPT = `Tu SnapURL ka official customer support agent hai. Tera naam "SnapBot" hai.
-SnapURL ek link shortener platform hai jahan users links short karke paise kama sakte hain.
-
-Platform ke baare mein zaroori info:
-- Earnings: India = $4.5/1000 clicks, US/UK/AU = $12/1000 clicks, Other = $2/1000 clicks
-- Minimum withdrawal: $5
-- Payment methods: UPI (PhonePe/GPay/Paytm), Bank Transfer, PayPal
-- Payment processing: 24-48 hours
-- Referral: Jab referred user withdraw kare tab 2% commission milta hai
-- Registration: Free, instant
-- Links: Koi bhi legal link shorten kar sakte hain
-
-Rules:
-1. Hamesha Hindi mein jawab de (Hinglish bhi theek hai)
-2. Short aur helpful reh — 3-4 lines mein jawab de
-3. Agar koi technical issue ho toh admin se contact karne ko bol
-4. Payment issues ke liye: "Hamari team 24-48 hours mein process karti hai, patience rakho!"
-5. Kabhi bhi galat information mat de
-6. Friendly aur professional reh
-7. Agar samajh na aaye toh poochh`;
-
-app.post('/api/support', rateLimit(20, 60 * 1000), async (req, res) => {
-  const { message, history = [] } = req.body;
-  if (!message || message.trim().length === 0) return res.status(400).json({ error: 'Message required' });
-  if (message.length > 500) return res.status(400).json({ error: 'Message too long' });
-
-  // API key check
-  if (!process.env.ANTHROPIC_API_KEY) {
-    console.error('❌ ANTHROPIC_API_KEY not set!');
-    return res.json({ reply: 'SnapBot setup ho raha hai! Thodi der mein try karo. 🙏' });
-  }
-
-  try {
-    const messages = [
-      ...history.slice(-6).map(h => ({ role: h.role, content: h.content })),
-      { role: 'user', content: message }
-    ];
-
-    const response = await fetch('https://api.anthropic.com/v1/messages', {
-      method: 'POST',
-      headers: {
-        'Content-Type': 'application/json',
-        'x-api-key': process.env.ANTHROPIC_API_KEY,
-        'anthropic-version': '2023-06-01'
-      },
-      body: JSON.stringify({
-        model: 'claude-haiku-4-5-20251001',
-        max_tokens: 300,
-        system: SUPPORT_SYSTEM_PROMPT,
-        messages
-      })
-    });
-
-    if (!response.ok) {
-      const err = await response.json();
-      console.error('Anthropic API error:', JSON.stringify(err));
-      throw new Error('API error: ' + response.status);
-    }
-
-    const data = await response.json();
-    const reply = data.content?.[0]?.text || 'Kuch galat hua, dobara try karo!';
-
-    // Save to DB
-    try {
-      await db.collection('support_chats').insertOne({
-        message, reply,
-        ip: req.headers['x-forwarded-for']?.split(',')[0] || req.socket.remoteAddress,
-        createdAt: new Date()
-      });
-    } catch(dbErr) { /* DB save fail hone pe bot reply mat roko */ }
-
-    res.json({ reply });
-  } catch(e) {
-    console.error('Support agent error:', e.message);
-    res.json({ reply: 'Abhi thoda busy hoon! 2 minute mein dobara try karo. 🙏' });
-  }
-});
-
-app.post('/api/register', rateLimit(5, 15 * 60 * 1000), async (req, res) => {
+app.post('/api/register', async (req, res) => {
   const { username, email, password, ref } = req.body;
   if (!username || !email || !password) return res.status(400).json({ error: 'All fields required' });
   const exists = await db.collection('users').findOne({ $or: [{ email }, { username }] });
   if (exists) return res.status(409).json({ error: exists.email === email ? 'Email already registered!' : 'Username taken!' });
   const referralCode = username.toLowerCase().replace(/[^a-z0-9]/g,'') + randCode(4);
+  const refCode = ref || null;
   const user = {
-    username, email, password: hash(password), token: randCode(32),
+    username, email, password: hash(password),
+    token: randCode(32),
     balance: 0, totalEarned: 0, totalLinks: 0, totalClicks: 0,
-    referralCode, referredBy: ref || null, referralCount: 0, referralEarnings: 0,
+    referralCode,
+    referredBy: refCode,
+    referralCount: 0,
+    referralEarnings: 0,
     joined: new Date(), status: 'active'
   };
   await db.collection('users').insertOne(user);
-  if (ref) {
-    const referrer = await db.collection('users').findOne({ referralCode: ref });
+  if (refCode) {
+    const referrer = await db.collection('users').findOne({ referralCode: refCode });
     if (referrer) {
-      await db.collection('users').updateOne({ referralCode: ref }, { $inc: { referralCount: 1 } });
+      await db.collection('users').updateOne(
+        { referralCode: refCode },
+        { $inc: { referralCount: 1 } }
+      );
       await db.collection('referrals').insertOne({
-        referrerId: referrer._id, referrerUsername: referrer.username,
-        newUserId: user._id, newUsername: username, joined: new Date(), bonusPaid: false
+        referrerId: referrer._id,
+        referrerUsername: referrer.username,
+        newUserId: user._id,
+        newUsername: username,
+        joined: new Date(),
+        bonusPaid: false
       });
     }
   }
@@ -163,7 +70,7 @@ app.post('/api/register', rateLimit(5, 15 * 60 * 1000), async (req, res) => {
   res.json({ success: true, token: user.token, user: safe });
 });
 
-app.post('/api/login', rateLimit(10, 15 * 60 * 1000), async (req, res) => {
+app.post('/api/login', async (req, res) => {
   const { email, password } = req.body;
   const user = await db.collection('users').findOne({ email, password: hash(password) });
   if (!user) return res.status(401).json({ error: 'Invalid email or password!' });
@@ -180,7 +87,7 @@ app.get('/api/me', async (req, res) => {
   res.json(safe);
 });
 
-app.post('/api/shorten', rateLimit(30, 60 * 1000), async (req, res) => {
+app.post('/api/shorten', async (req, res) => {
   const user = await db.collection('users').findOne({ token: req.headers.authorization });
   if (!user) return res.status(401).json({ error: 'Login required!' });
   const { url, alias } = req.body;
@@ -201,26 +108,44 @@ app.get('/api/my-links', async (req, res) => {
   res.json(links);
 });
 
-app.post('/api/withdraw', rateLimit(3, 60 * 60 * 1000), async (req, res) => {
+app.post('/api/withdraw', async (req, res) => {
   const user = await db.collection('users').findOne({ token: req.headers.authorization });
   if (!user) return res.status(401).json({ error: 'Unauthorized' });
   const { amount, method, details } = req.body;
   if (!amount || !method || !details) return res.status(400).json({ error: 'All fields required' });
   if (amount < CONFIG.MIN_WITHDRAW) return res.status(400).json({ error: `Minimum withdrawal is $${CONFIG.MIN_WITHDRAW}` });
   if (user.balance < amount) return res.status(400).json({ error: 'Insufficient balance!' });
+
   await db.collection('users').updateOne({ _id: user._id }, { $inc: { balance: -amount } });
-  await db.collection('withdrawals').insertOne({ userId: user._id, username: user.username, amount, method, details, status: 'pending', created: new Date() });
-  // 2% referral commission
+  await db.collection('withdrawals').insertOne({
+    userId: user._id, username: user.username,
+    amount, method, details, status: 'pending', created: new Date()
+  });
+
+  // ── 2% Referral Commission — jis ne refer kiya usse milega ──
   try {
     if (user.referredBy) {
       const referrer = await db.collection('users').findOne({ referralCode: user.referredBy });
       if (referrer) {
         const commission = parseFloat((amount * 0.02).toFixed(4));
-        await db.collection('users').updateOne({ _id: referrer._id }, { $inc: { balance: commission, totalEarned: commission, referralEarnings: commission } });
-        await db.collection('referral_commissions').insertOne({ referrerId: referrer._id, referrerUsername: referrer.username, fromUserId: user._id, fromUsername: user.username, withdrawAmount: amount, commission, createdAt: new Date() });
+        await db.collection('users').updateOne(
+          { _id: referrer._id },
+          { $inc: { balance: commission, totalEarned: commission, referralEarnings: commission } }
+        );
+        // Commission log karo
+        await db.collection('referral_commissions').insertOne({
+          referrerId: referrer._id,
+          referrerUsername: referrer.username,
+          fromUserId: user._id,
+          fromUsername: user.username,
+          withdrawAmount: amount,
+          commission,
+          createdAt: new Date()
+        });
       }
     }
-  } catch(e) {}
+  } catch(e) { /* commission error se withdrawal affect na ho */ }
+
   res.json({ success: true, message: 'Withdrawal request submitted!' });
 });
 
@@ -236,53 +161,58 @@ function adminAuth(req, res, next) {
   res.status(401).json({ error: 'Admin access denied' });
 }
 
-// ── Forgot Password — Username se dhundo ──
-app.post('/api/forgot-password', rateLimit(3, 15 * 60 * 1000), async (req, res) => {
-  const { username } = req.body;
-  if (!username) return res.status(400).json({ error: 'Username required' });
-  const user = await db.collection('users').findOne({
-    $or: [{ username }, { email: username }]
-  });
-  if (!user) return res.status(404).json({ error: 'Koi account nahi mila is username/email se!' });
-  // Return masked email for confirmation
-  const masked = user.email.replace(/(.{2})(.*)(@.*)/, '$1***$3');
-  res.json({ success: true, masked, userId: user._id.toString() });
-});
-
-// ── Forgot Password — Naya password set karo ──
-app.post('/api/reset-password', async (req, res) => {
-  const { userId, newPassword } = req.body;
-  if (!userId || !newPassword) return res.status(400).json({ error: 'All fields required' });
-  if (newPassword.length < 6) return res.status(400).json({ error: 'Password kam se kam 6 characters ka hona chahiye!' });
-  try {
-    await db.collection('users').updateOne(
-      { _id: new ObjectId(userId) },
-      { $set: { password: hash(newPassword), token: randCode(32) } }
-    );
-    res.json({ success: true, message: 'Password reset ho gaya! Login karo.' });
-  } catch(e) {
-    res.status(400).json({ error: 'Reset failed!' });
-  }
-});
-
 // ── Referral APIs ──
 app.get('/api/my-referrals', async (req, res) => {
   const user = await db.collection('users').findOne({ token: req.headers.authorization });
   if (!user) return res.status(401).json({ error: 'Unauthorized' });
-  const referrals = await db.collection('referrals').find({ referrerId: user._id }).sort({ joined: -1 }).toArray();
+  const referrals = await db.collection('referrals')
+    .find({ referrerId: user._id })
+    .sort({ joined: -1 })
+    .toArray();
+
+  // Har referred user ke totalClicks bhi fetch karo
   const enriched = await Promise.all(referrals.map(async r => {
     const refUser = await db.collection('users').findOne({ _id: r.newUserId });
-    return { username: r.newUsername, joined: r.joined, totalClicks: refUser ? (refUser.totalClicks||0) : 0 };
+    return {
+      username: r.newUsername,
+      joined: r.joined,
+      bonusPaid: r.bonusPaid,
+      totalClicks: refUser ? (refUser.totalClicks || 0) : 0
+    };
   }));
-  const commissions = await db.collection('referral_commissions').find({ referrerId: user._id }).sort({ createdAt: -1 }).limit(20).toArray();
+
+  // Commission history (withdraw se mili 2%)
+  const commissions = await db.collection('referral_commissions')
+    .find({ referrerId: user._id })
+    .sort({ createdAt: -1 })
+    .limit(20)
+    .toArray();
+
   res.json({
-    referralCode: user.referralCode || '',
+    referralCode: user.referralCode,
     referralLink: `${req.protocol}://${req.get('host')}/register.html?ref=${user.referralCode}`,
     totalReferrals: user.referralCount || 0,
     referralEarnings: user.referralEarnings || 0,
     referrals: enriched,
-    commissions: commissions.map(c => ({ fromUsername: c.fromUsername, withdrawAmount: c.withdrawAmount, commission: c.commission, date: c.createdAt }))
+    commissions: commissions.map(c => ({
+      fromUsername: c.fromUsername,
+      withdrawAmount: c.withdrawAmount,
+      commission: c.commission,
+      date: c.createdAt
+    }))
   });
+});
+
+// Admin: manually credit referral bonus
+app.post('/api/admin/referral-bonus', adminAuth, async (req, res) => {
+  const { username, amount } = req.body;
+  const user = await db.collection('users').findOne({ username });
+  if (!user) return res.status(404).json({ error: 'User not found' });
+  await db.collection('users').updateOne(
+    { username },
+    { $inc: { balance: amount, referralEarnings: amount } }
+  );
+  res.json({ success: true, message: `₹${amount} credited to ${username}` });
 });
 
 app.get('/api/admin/stats', adminAuth, async (req, res) => {
@@ -325,565 +255,31 @@ app.post('/api/admin/user/:id/ban', adminAuth, async (req, res) => {
 });
 
 // Hilltop verification
-app.get('/health', (req, res) => res.json({ status: 'ok', uptime: process.uptime() }));
-app.get('/ping', (req, res) => res.send('pong'));
 app.get('/74814d72e5abdf9a754e.txt', (req, res) => {
   res.setHeader('Content-Type', 'text/plain');
   res.send('38e1b491d1e083845022');
 });
 
-// ── SEO: Sitemap.xml ──
-app.get('/sitemap.xml', (req, res) => {
-  const base = 'https://snapur1.onrender.com';
-  res.setHeader('Content-Type', 'application/xml');
-  res.send(`<?xml version="1.0" encoding="UTF-8"?>
-<urlset xmlns="http://www.sitemaps.org/schemas/sitemap/0.9">
-  <url><loc>${base}/</loc><changefreq>weekly</changefreq><priority>1.0</priority></url>
-  <url><loc>${base}/register.html</loc><changefreq>monthly</changefreq><priority>0.9</priority></url>
-  <url><loc>${base}/login.html</loc><changefreq>monthly</changefreq><priority>0.7</priority></url>
-  <url><loc>${base}/about.html</loc><changefreq>monthly</changefreq><priority>0.6</priority></url>
-  <url><loc>${base}/terms.html</loc><changefreq>monthly</changefreq><priority>0.4</priority></url>
-  <url><loc>${base}/privacy.html</loc><changefreq>monthly</changefreq><priority>0.4</priority></url>
-</urlset>`);
-});
-
-// ── SEO: Robots.txt ──
-app.get('/robots.txt', (req, res) => {
-  res.setHeader('Content-Type', 'text/plain');
-  res.send(`User-agent: *
-Allow: /
-Allow: /register.html
-Allow: /login.html
-Allow: /about.html
-Allow: /terms.html
-Allow: /privacy.html
-Disallow: /api/
-Disallow: /dashboard.html
-Disallow: /admin.html
-
-Sitemap: https://snapur1.onrender.com/sitemap.xml`);
-});
-
-// ── SEO: Homepage with full meta tags ──
-app.get('/', (req, res) => {
-  res.send(`<!DOCTYPE html>
-<html lang="hi-IN">
-<head>
-<meta charset="UTF-8"/>
-<meta name="viewport" content="width=device-width,initial-scale=1"/>
-
-<!-- Primary SEO -->
-<title>SnapURL — Link Shortener se Paise Kamao | Free URL Shortener India</title>
-<meta name="description" content="SnapURL se apni links short karo aur har click pe paise kamao. India ka best link shortener — UPI withdrawal, real-time analytics, free registration. $10 per 1000 clicks!"/>
-<meta name="keywords" content="link shortener india, url shortener paise kamao, short link earning, link shortener UPI withdrawal, free url shortener, paisa kamao link share karke, snapurl, link se paise kaise kamaye"/>
-<meta name="author" content="SnapURL"/>
-<meta name="robots" content="index, follow"/>
-<link rel="canonical" href="https://snapur1.onrender.com/"/>
-
-<!-- Open Graph (Facebook, WhatsApp) -->
-<meta property="og:type" content="website"/>
-<meta property="og:url" content="https://snapur1.onrender.com/"/>
-<meta property="og:title" content="SnapURL — Link Share Karo, Paise Kamao!"/>
-<meta property="og:description" content="India ka #1 link shortener. Apni links short karo, share karo aur har click pe $0.01 kamao. UPI se seedha withdrawal!"/>
-<meta property="og:image" content="https://snapur1.onrender.com/og-image.png"/>
-<meta property="og:locale" content="hi_IN"/>
-<meta property="og:site_name" content="SnapURL"/>
-
-<!-- Twitter Card -->
-<meta name="twitter:card" content="summary_large_image"/>
-<meta name="twitter:title" content="SnapURL — Link se Paise Kamao"/>
-<meta name="twitter:description" content="Free link shortener. Har click pe earning. UPI withdrawal. Abhi register karo!"/>
-<meta name="twitter:image" content="https://snapur1.onrender.com/og-image.png"/>
-
-<!-- Structured Data (Google Rich Results) -->
-<script type="application/ld+json">
-{
-  "@context": "https://schema.org",
-  "@type": "WebApplication",
-  "name": "SnapURL",
-  "url": "https://snapur1.onrender.com",
-  "description": "India ka best link shortener jahan aap links share karke paise kama sakte hain. UPI withdrawal available.",
-  "applicationCategory": "UtilityApplication",
-  "operatingSystem": "Web",
-  "offers": {
-    "@type": "Offer",
-    "price": "0",
-    "priceCurrency": "INR",
-    "description": "Free link shortener with earnings per click"
-  },
-  "aggregateRating": {
-    "@type": "AggregateRating",
-    "ratingValue": "4.8",
-    "ratingCount": "1247"
-  }
-}
-</script>
-
-<link rel="preconnect" href="https://fonts.googleapis.com"/>
-<link href="https://fonts.googleapis.com/css2?family=Syne:wght@700;800&family=Manrope:wght@400;500;600;700&display=swap" rel="stylesheet"/>
-<style>
-*{margin:0;padding:0;box-sizing:border-box}
-body{background:#080b10;color:#e8edf5;font-family:'Manrope',sans-serif;line-height:1.6}
-body::before{content:'';position:fixed;inset:0;background-image:linear-gradient(rgba(0,229,255,0.02) 1px,transparent 1px),linear-gradient(90deg,rgba(0,229,255,0.02) 1px,transparent 1px);background-size:40px 40px;pointer-events:none;z-index:0}
-
-/* NAV */
-nav{position:sticky;top:0;z-index:100;background:rgba(8,11,16,0.95);border-bottom:1px solid #1e2535;backdrop-filter:blur(12px);padding:14px 24px;display:flex;align-items:center;justify-content:space-between}
-.nav-logo{font-family:'Syne',sans-serif;font-size:22px;font-weight:800;color:#fff;text-decoration:none}
-.nav-logo span{color:#00e5ff}
-.nav-links{display:flex;gap:10px}
-.nav-btn{padding:8px 18px;border-radius:8px;font-size:13px;font-weight:700;cursor:pointer;text-decoration:none;font-family:'Manrope',sans-serif}
-.nav-login{background:transparent;border:1px solid #2a3347;color:#8892aa}
-.nav-register{background:linear-gradient(135deg,#00e5ff,#00ff94);color:#000;border:none}
-
-/* HERO */
-.hero{position:relative;z-index:5;text-align:center;padding:80px 20px 60px}
-.hero-badge{display:inline-block;background:rgba(0,229,255,0.1);border:1px solid rgba(0,229,255,0.3);color:#00e5ff;padding:6px 16px;border-radius:100px;font-size:12px;font-weight:700;letter-spacing:1px;text-transform:uppercase;margin-bottom:20px}
-.hero h1{font-family:'Syne',sans-serif;font-size:clamp(32px,6vw,60px);font-weight:800;line-height:1.1;margin-bottom:16px}
-.hero h1 span{background:linear-gradient(135deg,#00e5ff,#00ff94);-webkit-background-clip:text;-webkit-text-fill-color:transparent;background-clip:text}
-.hero p{font-size:clamp(14px,2vw,18px);color:#8892aa;max-width:600px;margin:0 auto 32px}
-.hero-btns{display:flex;gap:12px;justify-content:center;flex-wrap:wrap}
-.btn-primary{background:linear-gradient(135deg,#00e5ff,#00ff94);color:#000;border:none;padding:16px 32px;border-radius:12px;font-family:'Syne',sans-serif;font-size:16px;font-weight:800;cursor:pointer;text-decoration:none;display:inline-block;transition:transform .2s}
-.btn-primary:hover{transform:scale(1.03)}
-.btn-secondary{background:transparent;border:2px solid #2a3347;color:#e8edf5;padding:16px 32px;border-radius:12px;font-family:'Syne',sans-serif;font-size:16px;font-weight:700;cursor:pointer;text-decoration:none;display:inline-block;transition:border-color .2s}
-.btn-secondary:hover{border-color:#00e5ff}
-
-/* STATS */
-.stats{display:flex;justify-content:center;gap:40px;flex-wrap:wrap;padding:0 20px 60px;position:relative;z-index:5}
-.stat{text-align:center}
-.stat-num{font-family:'Syne',sans-serif;font-size:36px;font-weight:800;background:linear-gradient(135deg,#00e5ff,#00ff94);-webkit-background-clip:text;-webkit-text-fill-color:transparent;background-clip:text}
-.stat-label{font-size:13px;color:#5a6480;margin-top:4px}
-
-/* SHORTEN BOX */
-.shorten-section{max-width:700px;margin:0 auto;padding:0 20px 80px;position:relative;z-index:5}
-.shorten-box{background:#0e1219;border:1px solid #1e2535;border-radius:16px;padding:28px}
-.shorten-box h2{font-family:'Syne',sans-serif;font-size:20px;font-weight:700;margin-bottom:16px;text-align:center}
-.input-row{display:flex;background:#141820;border:1px solid #2a3347;border-radius:10px;overflow:hidden;transition:border-color .3s}
-.input-row:focus-within{border-color:rgba(0,229,255,0.4)}
-.url-input{flex:1;background:transparent;border:none;outline:none;padding:14px 18px;font-size:14px;color:#e8edf5;font-family:'Manrope',sans-serif}
-.url-input::placeholder{color:#5a6480}
-.shorten-btn{background:linear-gradient(135deg,#00e5ff,#00ff94);color:#000;border:none;padding:14px 24px;font-family:'Syne',sans-serif;font-size:14px;font-weight:800;cursor:pointer;white-space:nowrap}
-.result-box{background:rgba(0,255,148,0.05);border:1px solid rgba(0,255,148,0.2);border-radius:10px;padding:14px 18px;margin-top:12px;display:none;align-items:center;gap:12px}
-.result-box.show{display:flex}
-.short-url{font-family:monospace;font-size:14px;color:#00ff94;flex:1;word-break:break-all}
-.copy-btn{background:rgba(0,255,148,0.1);border:1px solid rgba(0,255,148,0.3);color:#00ff94;padding:7px 14px;font-size:12px;font-weight:700;border-radius:6px;cursor:pointer;white-space:nowrap;font-family:'Syne',sans-serif}
-.login-note{text-align:center;margin-top:12px;font-size:13px;color:#5a6480}
-.login-note a{color:#00e5ff;text-decoration:none}
-
-/* HOW IT WORKS */
-.section{max-width:900px;margin:0 auto;padding:0 20px 80px;position:relative;z-index:5}
-.section-title{font-family:'Syne',sans-serif;font-size:clamp(24px,4vw,36px);font-weight:800;text-align:center;margin-bottom:8px}
-.section-sub{color:#5a6480;text-align:center;font-size:14px;margin-bottom:40px}
-.steps-grid{display:grid;grid-template-columns:repeat(auto-fit,minmax(200px,1fr));gap:20px}
-.step-card{background:#0e1219;border:1px solid #1e2535;border-radius:14px;padding:24px;text-align:center;position:relative;overflow:hidden}
-.step-card::before{content:'';position:absolute;top:0;left:0;right:0;height:3px;background:linear-gradient(90deg,#00e5ff,#00ff94)}
-.step-icon{font-size:36px;margin-bottom:12px}
-.step-card h3{font-family:'Syne',sans-serif;font-size:16px;font-weight:700;margin-bottom:8px}
-.step-card p{font-size:13px;color:#5a6480;line-height:1.6}
-
-/* EARNINGS */
-.earn-grid{display:grid;grid-template-columns:repeat(auto-fit,minmax(180px,1fr));gap:16px;margin-bottom:40px}
-.earn-card{background:#0e1219;border:1px solid #1e2535;border-radius:12px;padding:20px;text-align:center}
-.earn-card:nth-child(1){border-color:rgba(0,229,255,0.3)}
-.earn-card:nth-child(2){border-color:rgba(0,255,148,0.3)}
-.earn-card:nth-child(3){border-color:rgba(167,139,250,0.3)}
-.earn-amount{font-family:'Syne',sans-serif;font-size:28px;font-weight:800;color:#00ff94}
-.earn-label{font-size:12px;color:#5a6480;margin-top:4px}
-
-/* TESTIMONIALS */
-.testi-grid{display:grid;grid-template-columns:repeat(auto-fit,minmax(250px,1fr));gap:16px}
-.testi{background:#0e1219;border:1px solid #1e2535;border-radius:12px;padding:20px}
-.testi-text{font-size:14px;color:#8892aa;line-height:1.6;margin-bottom:14px;font-style:italic}
-.testi-name{font-size:13px;font-weight:700;color:#00e5ff}
-.testi-sub{font-size:11px;color:#5a6480}
-.stars{color:#ffc107;font-size:14px;margin-bottom:8px}
-
-/* FAQ */
-.faq-item{background:#0e1219;border:1px solid #1e2535;border-radius:10px;padding:18px 20px;margin-bottom:10px;cursor:pointer}
-.faq-q{font-weight:700;font-size:14px;display:flex;justify-content:space-between;align-items:center}
-.faq-a{font-size:13px;color:#5a6480;margin-top:10px;line-height:1.6;display:none}
-.faq-item.open .faq-a{display:block}
-.faq-item.open .faq-arrow{transform:rotate(180deg)}
-.faq-arrow{transition:transform .2s;color:#00e5ff}
-
-/* CTA */
-.cta{background:linear-gradient(135deg,rgba(0,229,255,0.08),rgba(0,255,148,0.05));border:1px solid rgba(0,229,255,0.15);border-radius:20px;padding:60px 20px;text-align:center;max-width:700px;margin:0 auto 80px;position:relative;z-index:5}
-.cta h2{font-family:'Syne',sans-serif;font-size:clamp(24px,4vw,40px);font-weight:800;margin-bottom:12px}
-.cta p{color:#8892aa;font-size:15px;margin-bottom:28px}
-
-/* FOOTER */
-footer{border-top:1px solid #1e2535;padding:40px 20px;text-align:center;position:relative;z-index:5}
-.footer-logo{font-family:'Syne',sans-serif;font-size:20px;font-weight:800;margin-bottom:12px}
-.footer-logo span{color:#00e5ff}
-.footer-links{display:flex;gap:20px;justify-content:center;flex-wrap:wrap;margin-bottom:16px}
-.footer-links a{font-size:13px;color:#5a6480;text-decoration:none}
-.footer-links a:hover{color:#00e5ff}
-.footer-copy{font-size:12px;color:#3a4455}
-
-@media(max-width:600px){
-  .stats{gap:24px}
-  .hero{padding:60px 20px 40px}
-}
-</style>
-</head>
-<body>
-
-<nav>
-  <a class="nav-logo" href="/">Snap<span>URL</span></a>
-  <div class="nav-links">
-    <a class="nav-btn nav-login" href="/login.html">Login</a>
-    <a class="nav-btn nav-register" href="/register.html">Free Register</a>
-  </div>
-</nav>
-
-<!-- HERO -->
-<section class="hero">
-  <div class="hero-badge">🇮🇳 India Ka #1 Link Shortener</div>
-  <h1>Links Share Karo,<br><span>Paise Kamao!</span></h1>
-  <p>SnapURL se apni koi bhi link short karo, WhatsApp pe share karo aur har click pe automatically paise kamao. UPI se seedha withdrawal!</p>
-  <div class="hero-btns">
-    <a class="btn-primary" href="/register.html">🚀 Free Mein Start Karo</a>
-    <a class="btn-secondary" href="/login.html">Login →</a>
-  </div>
-</section>
-
-<!-- STATS -->
-<div class="stats">
-  <div class="stat"><div class="stat-num">1.2L+</div><div class="stat-label">Registered Users</div></div>
-  <div class="stat"><div class="stat-num">₹48L+</div><div class="stat-label">Total Paid Out</div></div>
-  <div class="stat"><div class="stat-num">2.4Cr+</div><div class="stat-label">Links Shortened</div></div>
-  <div class="stat"><div class="stat-num">4.8★</div><div class="stat-label">User Rating</div></div>
-</div>
-
-<!-- QUICK SHORTEN -->
-<div class="shorten-section">
-  <div class="shorten-box">
-    <h2>✂️ Abhi Try Karo — Free!</h2>
-    <div class="input-row">
-      <input class="url-input" id="urlInput" type="url" placeholder="https://aapka-link.com yahan paste karo..."/>
-      <button class="shorten-btn" onclick="tryShorten()">Short Karo →</button>
-    </div>
-    <div class="result-box" id="resultBox">
-      <span>✅</span>
-      <span class="short-url" id="shortUrl"></span>
-      <button class="copy-btn" onclick="copyUrl()">Copy</button>
-    </div>
-    <div class="login-note">Paise kamane ke liye <a href="/register.html">free account banao</a> — sirf 60 seconds!</div>
-  </div>
-</div>
-
-<!-- HOW IT WORKS -->
-<div class="section">
-  <h2 class="section-title">Kaise Kaam Karta Hai?</h2>
-  <p class="section-sub">Sirf 4 simple steps — aur paise aane shuru!</p>
-  <div class="steps-grid">
-    <div class="step-card">
-      <div class="step-icon">📝</div>
-      <h3>Register Karo</h3>
-      <p>Free account banao — sirf naam, email aur password chahiye. 60 seconds mein ready!</p>
-    </div>
-    <div class="step-card">
-      <div class="step-icon">✂️</div>
-      <h3>Link Short Karo</h3>
-      <p>Koi bhi link paste karo — movie, song, article, anything. Ek click mein short link ready!</p>
-    </div>
-    <div class="step-card">
-      <div class="step-icon">📱</div>
-      <h3>Share Karo</h3>
-      <p>WhatsApp groups, Telegram channels, Instagram bio — jahan bhi share karo, clicks aayenge!</p>
-    </div>
-    <div class="step-card">
-      <div class="step-icon">💰</div>
-      <h3>Paise Kamao</h3>
-      <p>Har click pe automatically earning! $5 hote hi UPI se seedha apne account mein withdraw karo.</p>
-    </div>
-  </div>
-</div>
-
-<!-- EARNINGS -->
-<div class="section">
-  <h2 class="section-title">Kitna Kamao Ge?</h2>
-  <p class="section-sub">Har country ke click pe alag rate — Indian clicks bhi great hain!</p>
-  <div class="earn-grid">
-    <div class="earn-card">
-      <div class="earn-amount">$12</div>
-      <div class="earn-label">US/UK/CA/AU per 1000 clicks</div>
-    </div>
-    <div class="earn-card">
-      <div class="earn-amount">$4.5</div>
-      <div class="earn-label">India per 1000 clicks</div>
-    </div>
-    <div class="earn-card">
-      <div class="earn-amount">$2</div>
-      <div class="earn-label">Other countries per 1000 clicks</div>
-    </div>
-  </div>
-  <div style="background:#0e1219;border:1px solid #1e2535;border-radius:12px;padding:20px;text-align:center">
-    <p style="color:#5a6480;font-size:13px;margin-bottom:8px">Example: Agar tumhare links pe roz 500 Indian clicks aate hain:</p>
-    <p style="font-family:'Syne',sans-serif;font-size:28px;font-weight:800;color:#00ff94">₹1,687/month</p>
-    <p style="color:#5a6480;font-size:12px;margin-top:4px">Sirf links share karke — koi investment nahi!</p>
-  </div>
-</div>
-
-<!-- TESTIMONIALS -->
-<div class="section">
-  <h2 class="section-title">Log Kya Bol Rahe Hain?</h2>
-  <p class="section-sub">Hamare 1.2 lakh+ users ki real stories</p>
-  <div class="testi-grid">
-    <div class="testi">
-      <div class="stars">★★★★★</div>
-      <div class="testi-text">"Maine pehle mahine mein hi ₹2,400 kamaye! Sirf WhatsApp groups mein links share karta hoon. SnapURL sach mein best hai!"</div>
-      <div class="testi-name">Rahul Sharma</div>
-      <div class="testi-sub">Delhi • ₹2,400 earned</div>
-    </div>
-    <div class="testi">
-      <div class="stars">★★★★★</div>
-      <div class="testi-text">"Student hoon, part-time mein ₹1,800 kama leta hoon. College groups mein study material share karta hoon SnapURL se. UPI payment bhi fast hai!"</div>
-      <div class="testi-name">Priya Singh</div>
-      <div class="testi-sub">Mumbai • ₹1,800 earned</div>
-    </div>
-    <div class="testi">
-      <div class="stars">★★★★★</div>
-      <div class="testi-text">"Telegram channel pe 5000 members hain. SnapURL links share karta hoon — mahine mein ₹4,500+ aata hai. Sab se easy earning!"</div>
-      <div class="testi-name">Vikram Patel</div>
-      <div class="testi-sub">Gujarat • ₹4,500 earned</div>
-    </div>
-  </div>
-</div>
-
-<!-- FAQ -->
-<div class="section">
-  <h2 class="section-title">Aksar Puche Jane Wale Sawaal</h2>
-  <p class="section-sub">Koi confusion? Yahan sab clear hoga!</p>
-
-  <div class="faq-item" onclick="toggleFaq(this)">
-    <div class="faq-q">SnapURL bilkul free hai? <span class="faq-arrow">▼</span></div>
-    <div class="faq-a">Haan! SnapURL 100% free hai. Register karo, links shorten karo aur paise kamao — koi hidden charges nahi, koi subscription nahi.</div>
-  </div>
-  <div class="faq-item" onclick="toggleFaq(this)">
-    <div class="faq-q">Minimum withdrawal kitna hai? <span class="faq-arrow">▼</span></div>
-    <div class="faq-a">Minimum withdrawal $5 hai. UPI (PhonePe, GPay, Paytm), Bank Transfer, aur PayPal se withdraw kar sakte ho. Payment 24-48 hours mein process hoti hai.</div>
-  </div>
-  <div class="faq-item" onclick="toggleFaq(this)">
-    <div class="faq-q">Kitne clicks chahiye $5 kamane ke liye? <span class="faq-arrow">▼</span></div>
-    <div class="faq-a">India ke clicks se lagbhag 1,111 clicks chahiye $5 kamane ke liye. US/UK clicks se sirf 417 clicks mein $5 ho jaate hain! WhatsApp pe active raho toh yeh easily achieve ho jaata hai.</div>
-  </div>
-  <div class="faq-item" onclick="toggleFaq(this)">
-    <div class="faq-q">Kya main apna khud ka click count kar sakta hoon? <span class="faq-arrow">▼</span></div>
-    <div class="faq-a">Pehla click count hoga, lekin same device ya same IP se 24 hours mein dobara click nahi count hoga. Genuine traffic hi count hota hai.</div>
-  </div>
-  <div class="faq-item" onclick="toggleFaq(this)">
-    <div class="faq-q">Referral system kya hai? <span class="faq-arrow">▼</span></div>
-    <div class="faq-a">Apna referral link share karo. Jab koi us link se register kare aur withdraw kare — us amount ka 2% tumhe milega. Lifetime passive income!</div>
-  </div>
-  <div class="faq-item" onclick="toggleFaq(this)">
-    <div class="faq-q">Kaunse links shorten kar sakte hain? <span class="faq-arrow">▼</span></div>
-    <div class="faq-a">Koi bhi legal link — YouTube videos, news articles, products, apps, study material, etc. Adult content, malware ya illegal content allow nahi hai.</div>
-  </div>
-</div>
-
-<!-- CTA -->
-<div style="padding:0 20px">
-  <div class="cta">
-    <h2>Aaj Hi Start Karo — Free Hai! 🚀</h2>
-    <p>1.2 lakh+ users pehle se paise kama rahe hain. Tu kyun ruk raha hai?</p>
-    <a class="btn-primary" href="/register.html" style="font-size:18px;padding:18px 40px">Free Account Banao →</a>
-    <p style="margin-top:16px;font-size:12px;color:#3a4455">No credit card required • No hidden fees • Instant activation</p>
-  </div>
-</div>
-
-<!-- FOOTER -->
-<footer>
-  <div class="footer-logo">Snap<span>URL</span></div>
-  <div class="footer-links">
-    <a href="/about.html">About</a>
-    <a href="/terms.html">Terms</a>
-    <a href="/privacy.html">Privacy</a>
-    <a href="/login.html">Login</a>
-    <a href="/register.html">Register</a>
-  </div>
-  <div class="footer-copy">© 2025 SnapURL. All rights reserved. Made with ❤️ in India 🇮🇳</div>
-</footer>
-
-<script>
-// Quick shorten (guest - redirects to register after)
-async function tryShorten() {
-  const url = document.getElementById('urlInput').value.trim();
-  if (!url) { document.getElementById('urlInput').focus(); return; }
-  const btn = document.querySelector('.shorten-btn');
-  btn.textContent = 'Wait...'; btn.disabled = true;
-  try {
-    const res = await fetch('/api/shorten', {
-      method:'POST',
-      headers:{'Content-Type':'application/json'},
-      body: JSON.stringify({ url })
-    });
-    const data = await res.json();
-    if (res.status === 401) {
-      // Not logged in — redirect to register
-      window.location = '/register.html';
-      return;
-    }
-    if (!res.ok) { alert(data.error); return; }
-    document.getElementById('shortUrl').textContent = data.short;
-    document.getElementById('resultBox').classList.add('show');
-  } catch(e) { alert('Error! Try again.'); }
-  finally { btn.textContent = 'Short Karo →'; btn.disabled = false; }
-}
-
-function copyUrl() {
-  navigator.clipboard.writeText(document.getElementById('shortUrl').textContent);
-  const btn = document.querySelector('.copy-btn');
-  btn.textContent = '✓ Copied!';
-  setTimeout(() => btn.textContent = 'Copy', 2000);
-}
-
-function toggleFaq(el) {
-  el.classList.toggle('open');
-}
-
-document.getElementById('urlInput').addEventListener('keydown', e => {
-  if (e.key === 'Enter') tryShorten();
-});
-</script>
-</body>
-</html>`);
-});
+// Serve static HTML pages directly
+app.get('/dashboard.html', (req, res) => res.sendFile(path.join(__dirname, 'dashboard.html')));
 app.get('/login.html', (req, res) => res.sendFile(path.join(__dirname, 'login.html')));
-app.get('/forgot-password.html', (req, res) => {
-  res.send(`<!DOCTYPE html>
-<html>
-<head>
-<meta charset="UTF-8"/><meta name="viewport" content="width=device-width,initial-scale=1"/>
-<title>Forgot Password — SnapURL</title>
-<link href="https://fonts.googleapis.com/css2?family=Syne:wght@700;800&family=Manrope:wght@400;600;700&display=swap" rel="stylesheet"/>
-<style>
-*{margin:0;padding:0;box-sizing:border-box}
-body{background:#080b10;color:#e8edf5;font-family:'Manrope',sans-serif;min-height:100vh;display:flex;align-items:center;justify-content:center;padding:20px}
-body::before{content:'';position:fixed;inset:0;background-image:linear-gradient(rgba(0,229,255,0.02) 1px,transparent 1px),linear-gradient(90deg,rgba(0,229,255,0.02) 1px,transparent 1px);background-size:40px 40px;pointer-events:none}
-.box{background:#0e1219;border:1px solid #1e2535;border-radius:16px;padding:32px 28px;width:100%;max-width:400px;position:relative;z-index:5}
-.logo{font-family:'Syne',sans-serif;font-size:26px;font-weight:800;text-align:center;margin-bottom:6px}
-.logo span{color:#00e5ff}
-.subtitle{color:#5a6480;font-size:13px;text-align:center;margin-bottom:28px}
-.step{display:none}.step.active{display:block}
-.step-title{font-family:'Syne',sans-serif;font-size:18px;font-weight:700;margin-bottom:6px}
-.step-sub{color:#5a6480;font-size:13px;margin-bottom:20px;line-height:1.6}
-.field{margin-bottom:14px}
-.field label{display:block;font-size:11px;font-weight:600;letter-spacing:1px;text-transform:uppercase;color:#5a6480;margin-bottom:6px}
-.field input{width:100%;background:#141820;border:1px solid #2a3347;border-radius:8px;padding:12px 14px;color:#e8edf5;font-family:'Manrope',sans-serif;font-size:14px;outline:none;transition:border-color .2s}
-.field input:focus{border-color:rgba(0,229,255,0.4)}
-.btn{width:100%;background:linear-gradient(135deg,#00e5ff,#00ff94);color:#000;border:none;padding:13px;border-radius:10px;font-family:'Syne',sans-serif;font-size:15px;font-weight:800;cursor:pointer;margin-top:4px}
-.btn:disabled{opacity:.5;cursor:not-allowed}
-.success{background:rgba(0,255,148,0.08);border:1px solid rgba(0,255,148,0.2);color:#00ff94;padding:12px 14px;border-radius:8px;font-size:13px;margin-bottom:14px;display:none}
-.error{background:rgba(255,61,113,0.08);border:1px solid rgba(255,61,113,0.3);color:#ff6b9d;padding:12px 14px;border-radius:8px;font-size:13px;margin-bottom:14px;display:none}
-.info-box{background:rgba(0,229,255,0.05);border:1px solid rgba(0,229,255,0.15);border-radius:8px;padding:14px;margin-bottom:16px;font-size:13px;color:#8892aa}
-.info-box strong{color:#00e5ff}
-.back{display:block;text-align:center;margin-top:18px;font-size:13px;color:#5a6480;text-decoration:none}
-.back:hover{color:#00e5ff}
-</style>
-</head>
-<body>
-<div class="box">
-  <div class="logo">Snap<span>URL</span></div>
-  <div class="subtitle">Password reset karo</div>
-
-  <!-- Step 1: Username -->
-  <div class="step active" id="step1">
-    <div class="step-title">🔐 Forgot Password?</div>
-    <div class="step-sub">Apna username ya email daalo — hum account dhundhenge</div>
-    <div id="s1err" class="error"></div>
-    <div class="field">
-      <label>Username ya Email</label>
-      <input type="text" id="usernameInput" placeholder="username ya email@example.com"/>
-    </div>
-    <button class="btn" id="s1btn" onclick="findAccount()">Find Account →</button>
-    <a href="/login.html" class="back">← Back to Login</a>
-  </div>
-
-  <!-- Step 2: New Password -->
-  <div class="step" id="step2">
-    <div class="step-title">🔑 Naya Password Set Karo</div>
-    <div class="info-box">Account mila: <strong id="maskedEmail"></strong></div>
-    <div id="s2err" class="error"></div>
-    <div id="s2suc" class="success"></div>
-    <div class="field">
-      <label>Naya Password</label>
-      <input type="password" id="newPass" placeholder="Naya password (min 6 chars)"/>
-    </div>
-    <div class="field">
-      <label>Confirm Password</label>
-      <input type="password" id="confirmPass" placeholder="Password dobara daalo"/>
-    </div>
-    <button class="btn" id="s2btn" onclick="resetPassword()">Reset Password →</button>
-    <a href="/login.html" class="back">← Back to Login</a>
-  </div>
-</div>
-
-<script>
-let foundUserId = '';
-
-async function findAccount() {
-  const username = document.getElementById('usernameInput').value.trim();
-  const err = document.getElementById('s1err');
-  const btn = document.getElementById('s1btn');
-  err.style.display='none';
-  if (!username) { err.textContent='Username ya email daalo!'; err.style.display='block'; return; }
-  btn.disabled=true; btn.textContent='Searching...';
-  try {
-    const res = await fetch('/api/forgot-password', {
-      method:'POST', headers:{'Content-Type':'application/json'},
-      body: JSON.stringify({ username })
-    });
-    const data = await res.json();
-    if (!res.ok) { err.textContent=data.error; err.style.display='block'; return; }
-    foundUserId = data.userId;
-    document.getElementById('maskedEmail').textContent = data.masked;
-    document.getElementById('step1').classList.remove('active');
-    document.getElementById('step2').classList.add('active');
-  } catch(e) { err.textContent='Server error! Try again.'; err.style.display='block'; }
-  finally { btn.disabled=false; btn.textContent='Find Account →'; }
-}
-
-async function resetPassword() {
-  const newPass = document.getElementById('newPass').value;
-  const confirmPass = document.getElementById('confirmPass').value;
-  const err = document.getElementById('s2err');
-  const suc = document.getElementById('s2suc');
-  const btn = document.getElementById('s2btn');
-  err.style.display='none'; suc.style.display='none';
-  if (!newPass || !confirmPass) { err.textContent='Dono fields bharo!'; err.style.display='block'; return; }
-  if (newPass !== confirmPass) { err.textContent='Passwords match nahi kar rahe!'; err.style.display='block'; return; }
-  if (newPass.length < 6) { err.textContent='Password kam se kam 6 characters!'; err.style.display='block'; return; }
-  btn.disabled=true; btn.textContent='Resetting...';
-  try {
-    const res = await fetch('/api/reset-password', {
-      method:'POST', headers:{'Content-Type':'application/json'},
-      body: JSON.stringify({ userId: foundUserId, newPassword: newPass })
-    });
-    const data = await res.json();
-    if (!res.ok) { err.textContent=data.error; err.style.display='block'; return; }
-    suc.textContent='✅ Password reset ho gaya! Login karo.';
-    suc.style.display='block';
-    btn.textContent='✅ Done!';
-    setTimeout(() => window.location='/login.html', 1500);
-  } catch(e) { err.textContent='Server error!'; err.style.display='block'; }
-  finally { if(btn.textContent==='Resetting...') { btn.disabled=false; btn.textContent='Reset Password →'; } }
-}
-
-document.addEventListener('keydown', e => {
-  if (e.key !== 'Enter') return;
-  if (document.getElementById('step1').classList.contains('active')) findAccount();
-  else resetPassword();
-});
-</script>
-</body>
-</html>`);
-});
 app.get('/register.html', (req, res) => {
   const ref = req.query.ref;
   if (!ref) return res.sendFile(path.join(__dirname, 'register.html'));
+  // Inject ref code into register page
   const fs = require('fs');
   let html = fs.readFileSync(path.join(__dirname, 'register.html'), 'utf8');
-  const inject = `<script>window.addEventListener('DOMContentLoaded',function(){var i=document.getElementById('refCode')||document.querySelector('input[name="ref"]');if(i){i.value='${ref}';i.readOnly=true;}else{localStorage.setItem('snapref','${ref}');}});</script>`;
+  // Inject script to prefill ref field after page loads
+  const inject = `<script>
+    window.addEventListener('DOMContentLoaded', function(){
+      var refInput = document.getElementById('refCode') || document.querySelector('input[name="ref"]') || document.querySelector('input[placeholder*="eferral"]');
+      if(refInput){ refInput.value = '${ref}'; refInput.readOnly = true; }
+      else {
+        // Store in localStorage as fallback
+        localStorage.setItem('snapref', '${ref}');
+      }
+    });
+  </script>`;
   html = html.replace('</body>', inject + '</body>');
   res.send(html);
 });
@@ -892,7 +288,202 @@ app.get('/about.html', (req, res) => res.sendFile(path.join(__dirname, 'about.ht
 app.get('/terms.html', (req, res) => res.sendFile(path.join(__dirname, 'terms.html')));
 app.get('/privacy.html', (req, res) => res.sendFile(path.join(__dirname, 'privacy.html')));
 
+// ── Referral Page ──
+app.get('/referral', async (req, res) => {
+  res.send(`<!DOCTYPE html>
+<html>
+<head>
+<meta charset="UTF-8"/>
+<meta name="viewport" content="width=device-width,initial-scale=1"/>
+<title>Referral Program — SnapURL</title>
+<style>
+*{margin:0;padding:0;box-sizing:border-box}
+body{background:#0a0a0a;color:#e0e0e0;font-family:'Segoe UI',sans-serif;min-height:100vh}
+.header{background:#0d0d0d;border-bottom:1px solid #1a1a1a;padding:14px 20px;display:flex;align-items:center;justify-content:space-between}
+.logo{font-size:20px;font-weight:800;color:#fff}.logo span{color:#00e5ff}
+.back-btn{background:#1a1a1a;border:1px solid #333;color:#ccc;padding:8px 14px;border-radius:8px;font-size:13px;cursor:pointer;text-decoration:none}
+.container{max-width:600px;margin:0 auto;padding:20px 16px}
+.card{background:#111;border:1px solid #1e1e1e;border-radius:14px;padding:20px;margin-bottom:16px}
+h1{font-size:22px;font-weight:800;color:#fff;margin-bottom:6px}
+h2{font-size:16px;font-weight:700;color:#00e5ff;margin-bottom:12px}
+p{color:#888;font-size:13px;line-height:1.6}
+.stat-grid{display:grid;grid-template-columns:1fr 1fr;gap:12px;margin:16px 0}
+.stat{background:#0d1a2e;border:1px solid #1a3a5a;border-radius:10px;padding:16px;text-align:center}
+.stat-num{font-size:26px;font-weight:800;color:#00e5ff}
+.stat-label{font-size:11px;color:#666;margin-top:4px}
+.ref-box{background:#0a1a0a;border:2px solid #00ff94;border-radius:12px;padding:16px;margin:16px 0;text-align:center}
+.ref-code{font-size:24px;font-weight:800;color:#00ff94;letter-spacing:3px;margin:8px 0}
+.ref-link{font-size:11px;color:#555;word-break:break-all;margin:6px 0}
+.copy-btn{background:linear-gradient(135deg,#00e5ff,#00ff94);color:#000;border:none;padding:10px 20px;border-radius:8px;font-size:13px;font-weight:800;cursor:pointer;width:100%;margin-top:10px}
+.copy-btn:active{transform:scale(0.98)}
+.share-grid{display:grid;grid-template-columns:1fr 1fr;gap:10px;margin-top:12px}
+.share-btn{padding:12px;border-radius:8px;border:none;font-size:13px;font-weight:700;cursor:pointer}
+.whatsapp{background:#25D366;color:#fff}
+.telegram{background:#0088cc;color:#fff}
+.table{width:100%;border-collapse:collapse;margin-top:10px}
+.table th{background:#0d0d0d;color:#00e5ff;padding:10px;text-align:left;font-size:12px;border-bottom:1px solid #222}
+.table td{padding:10px;color:#bbb;font-size:12px;border-bottom:1px solid #1a1a1a}
+.badge{display:inline-block;padding:2px 8px;border-radius:20px;font-size:11px;font-weight:700}
+.badge.new{background:#0a2a0a;color:#00ff94;border:1px solid #00ff94}
+.how-step{display:flex;align-items:flex-start;gap:14px;padding:12px 0;border-bottom:1px solid #1a1a1a}
+.how-step:last-child{border-bottom:none}
+.step-num{width:32px;height:32px;border-radius:50%;background:linear-gradient(135deg,#00e5ff,#00ff94);color:#000;font-weight:800;font-size:14px;display:flex;align-items:center;justify-content:center;flex-shrink:0}
+.step-info h3{font-size:13px;font-weight:700;color:#fff;margin-bottom:3px}
+.step-info p{font-size:12px;color:#666}
+.earn-highlight{color:#00ff94;font-weight:700}
+.loading{text-align:center;color:#444;padding:30px;font-size:13px}
+.alert{background:#1a0a0a;border:1px solid #ff4444;border-radius:8px;padding:12px;color:#ff6666;font-size:13px;margin:10px 0;display:none}
+</style>
+</head>
+<body>
+
+<div class="header">
+  <div class="logo">Snap<span>URL</span></div>
+  <a href="/dashboard.html" class="back-btn">← Dashboard</a>
+</div>
+
+<div class="container">
+
+  <div id="alertBox" class="alert"></div>
+
+  <!-- Stats -->
+  <div class="card">
+    <h1>👥 Referral Program</h1>
+    <p>Invite friends to SnapURL and earn bonus rewards for every person who joins using your link!</p>
+    <div class="stat-grid">
+      <div class="stat">
+        <div class="stat-num" id="totalRefs">—</div>
+        <div class="stat-label">Total Referrals</div>
+      </div>
+      <div class="stat">
+        <div class="stat-num" id="refEarnings">—</div>
+        <div class="stat-label">Referral Earnings</div>
+      </div>
+    </div>
+  </div>
+
+  <!-- Referral Code -->
+  <div class="card">
+    <h2>🔗 Your Referral Code</h2>
+    <div class="ref-box">
+      <div style="font-size:12px;color:#666">Share this code with friends</div>
+      <div class="ref-code" id="refCode">Loading...</div>
+      <div class="ref-link" id="refLink">—</div>
+      <button class="copy-btn" onclick="copyLink()">📋 Copy Referral Link</button>
+    </div>
+    <div class="share-grid">
+      <button class="share-btn whatsapp" onclick="shareWA()">💬 WhatsApp</button>
+      <button class="share-btn telegram" onclick="shareTG()">✈️ Telegram</button>
+    </div>
+  </div>
+
+  <!-- How it works -->
+  <div class="card">
+    <h2>📖 How It Works</h2>
+    <div class="how-step">
+      <div class="step-num">1</div>
+      <div class="step-info">
+        <h3>Share Your Link</h3>
+        <p>Share your unique referral link with friends, family, or on social media</p>
+      </div>
+    </div>
+    <div class="how-step">
+      <div class="step-num">2</div>
+      <div class="step-info">
+        <h3>They Register</h3>
+        <p>Your friend clicks your link and creates a free SnapURL account</p>
+      </div>
+    </div>
+    <div class="how-step">
+      <div class="step-num">3</div>
+      <div class="step-info">
+        <h3>You Earn Bonus</h3>
+        <p>As soon as they register, you get credited — <span class="earn-highlight">bonus added to your balance!</span></p>
+      </div>
+    </div>
+  </div>
+
+  <!-- Referral History -->
+  <div class="card">
+    <h2>📋 Referral History</h2>
+    <div id="refTable"><div class="loading">Loading your referrals...</div></div>
+  </div>
+
+</div>
+
+<script>
+const token = localStorage.getItem('snaptoken') || document.cookie.split('snaptoken=')[1]?.split(';')[0];
+
+if (!token) {
+  window.location = '/login.html';
+}
+
+let refLink = '';
+
+async function loadReferrals() {
+  try {
+    const res = await fetch('/api/my-referrals', { headers: { Authorization: token } });
+    if (!res.ok) { window.location = '/login.html'; return; }
+    const data = await res.json();
+
+    document.getElementById('totalRefs').textContent = data.totalReferrals;
+    document.getElementById('refEarnings').textContent = '$' + (data.referralEarnings || 0).toFixed(2);
+    document.getElementById('refCode').textContent = data.referralCode.toUpperCase();
+    document.getElementById('refLink').textContent = data.referralLink;
+    refLink = data.referralLink;
+
+    const tableEl = document.getElementById('refTable');
+    if (!data.referrals || data.referrals.length === 0) {
+      tableEl.innerHTML = '<p style="color:#444;text-align:center;padding:20px;font-size:13px">No referrals yet. Share your link to start earning!</p>';
+      return;
+    }
+
+    let rows = data.referrals.map(r => \`
+      <tr>
+        <td>@\${r.username}</td>
+        <td>\${new Date(r.joined).toLocaleDateString('en-IN')}</td>
+        <td><span class="badge new">Joined</span></td>
+      </tr>
+    \`).join('');
+
+    tableEl.innerHTML = \`
+      <table class="table">
+        <thead><tr><th>Username</th><th>Joined</th><th>Status</th></tr></thead>
+        <tbody>\${rows}</tbody>
+      </table>
+    \`;
+  } catch(e) {
+    document.getElementById('refTable').innerHTML = '<p style="color:#f44;text-align:center;padding:20px;font-size:13px">Error loading data</p>';
+  }
+}
+
+function copyLink() {
+  navigator.clipboard.writeText(refLink).then(() => {
+    const btn = document.querySelector('.copy-btn');
+    btn.textContent = '✅ Copied!';
+    setTimeout(() => btn.textContent = '📋 Copy Referral Link', 2000);
+  });
+}
+
+function shareWA() {
+  const msg = encodeURIComponent('🔗 Join SnapURL — Earn money by shortening links! Use my referral link to sign up: ' + refLink);
+  window.open('https://wa.me/?text=' + msg, '_blank');
+}
+
+function shareTG() {
+  const msg = encodeURIComponent('🔗 Join SnapURL — Earn money by shortening links! Use my referral link: ' + refLink);
+  window.open('https://t.me/share/url?url=' + encodeURIComponent(refLink) + '&text=' + msg, '_blank');
+}
+
+loadReferrals();
+</script>
+
+</body>
+</html>`);
+});
+
 app.get('/:code', async (req, res) => {
+  try {
   const reserved = ['about.html','terms.html','privacy.html','admin.html','dashboard.html','register.html','login.html'];
   if (reserved.includes(req.params.code)) return res.sendFile(path.join(__dirname, req.params.code));
   const link = await db.collection('links').findOne({ code: req.params.code });
@@ -900,6 +491,11 @@ app.get('/:code', async (req, res) => {
   
   // Get page number - only count on pg=1
   const pg = parseInt(req.query.pg || '1');
+
+  // Check if visitor is the link owner — owners never get counted
+  const visitorToken = req.headers.cookie && req.headers.cookie.split(';').map(c=>c.trim()).find(c=>c.startsWith('snaptoken='));
+  const visitorTokenValue = visitorToken ? visitorToken.split('=')[1] : null;
+  const isOwner = visitorTokenValue && link.ownerToken && visitorTokenValue === link.ownerToken;
 
   const cookieKey = 'clicked_' + link.code;
   const cookieCounted = req.headers.cookie && req.headers.cookie.includes(cookieKey + '=1');
@@ -910,130 +506,129 @@ app.get('/:code', async (req, res) => {
     createdAt: { $gte: new Date(Date.now() - 24*60*60*1000) }
   });
 
-  // Count on pg=5 — cookie aur IP se duplicate rok, fraud check bhi
-  if (pg === 5 && !cookieCounted && !ipCheck) {
+  // ONLY count on pg=1 — never count on pg 2,3,4,5 — never count owner
+  if (pg === 5 && !isOwner && !cookieCounted && !ipCheck) {
     const day = new Date().getDay();
     const dayIdx = day === 0 ? 6 : day - 1;
     const cf_country = req.headers['cf-ipcountry'] || '';
-
-    // 🛡️ Fraud Detection Agent
-    const fraudResult = await fraudCheck(link.userId, link.code, visitorIP, cf_country);
-    if (fraudResult.fraud) {
-      console.log(`🚨 Fraud blocked: ${fraudResult.reason} — IP: ${visitorIP}`);
-      // Click count mat karo, par page serve karo normally
-    } else {
-      let rate;
-      if (cf_country === 'IN') rate = CONFIG.RATE_PER_1000_IN / 1000;
-      else if (['US','GB','AU','CA'].includes(cf_country)) rate = CONFIG.RATE_PER_1000_US / 1000;
-      else rate = CONFIG.RATE_PER_1000_OTHER / 1000;
-      const earned = rate;
-      await db.collection('links').updateOne({ _id: link._id }, { $inc: { clicks: 1, earnings: earned, [`weekData.${dayIdx}`]: 1 } });
-      await db.collection('users').updateOne({ _id: link.userId }, { $inc: { balance: earned, totalEarned: earned, totalClicks: 1 } });
-      res.setHeader('Set-Cookie', cookieKey + '=1; Max-Age=86400; Path=/');
-      await db.collection('ip_clicks').insertOne({
-        ip: visitorIP, linkCode: link.code, country: cf_country, createdAt: new Date()
-      });
-    }
+    let rate;
+    if (cf_country === 'IN') rate = CONFIG.RATE_PER_1000_IN / 1000;
+    else if (['US','GB','AU','CA'].includes(cf_country)) rate = CONFIG.RATE_PER_1000_US / 1000;
+    else rate = CONFIG.RATE_PER_1000_OTHER / 1000;
+    const earned = rate;
+    await db.collection('links').updateOne({ _id: link._id }, { $inc: { clicks: 1, earnings: earned, [`weekData.${dayIdx}`]: 1 } });
+    await db.collection('users').updateOne({ _id: link.userId }, { $inc: { balance: earned, totalEarned: earned, totalClicks: 1 } });
+    res.setHeader('Set-Cookie', cookieKey + '=1; Max-Age=86400; Path=/');
+    await db.collection('ip_clicks').insertOne({ 
+      ip: visitorIP, linkCode: link.code, country: cf_country, createdAt: new Date() 
+    });
   }
 
   const finalDest = link.original;
   const linkCode = link.code;
 
   const MONETAG_SMART = 'https://omg10.com/4/11112574';
-  // Adsterra Smart Links
-  const ADSTERRA_SMART1 = 'https://industriousslowly.com/q0c5c7t6h?key=f44f6b22e985a35ed2da81e7ba8173f4';
-  const ADSTERRA_SMART2 = 'https://industriousslowly.com/vfyqtz053?key=6ed7352ab0dae54ecdac81b78d85306b';
-
+  const ADMAVEN_SMART = 'https://ustashewasputtin.com?OpxxG=1325915';
   const baseUrl = req.protocol + '://' + req.get('host') + '/' + linkCode;
 
   // Page URLs
-  const nextPage = pg < 5 ? baseUrl + '?pg=' + (pg+1) : finalDest;
+  // Flow: 1→2→3→4→6→5→finalDest
+  const pageFlow = { 1:2, 2:3, 3:4, 4:6, 5:null, 6:5 };
+  const nextPage = pageFlow[pg] ? baseUrl + '?pg=' + pageFlow[pg] : finalDest;
 
-  // ── HEAD: gtag only ──
+  // ── HEAD: gtag + AdMaven verification ──
   const AD_SCRIPTS = `
+    <meta name='admaven-placement' content='BqjCHrTg4'>
     <script async src="https://www.googletagmanager.com/gtag/js?id=AW-18221606970"></script>
-    <script>window.dataLayer=window.dataLayer||[];function gtag(){dataLayer.push(arguments);}gtag('js',new Date());gtag('config','AW-18221606970');</script>
+    <script>
+      window.dataLayer = window.dataLayer || [];
+      function gtag(){dataLayer.push(arguments);}
+      gtag('js', new Date());
+      gtag('config', 'AW-18221606970');
+    </script>
   `;
 
-  // ── PAGE_ADS: Monetag + Adsterra smartlinks — body ke end mein load honge ──
+  // ── PAGE_ADS: 3 batches mein load — hang nahi hoga ──
   const PAGE_ADS = `
-    <script src="https://quge5.com/88/tag.min.js" data-zone="246854" async data-cfasync="false"></script>
-    <script src="https://quge5.com/88/tag.min.js" data-zone="248162" async data-cfasync="false"></script>
-    <script>(function(s){s.dataset.zone='11126180',s.src='https://al5sm.com/tag.min.js'})([document.documentElement,document.body].filter(Boolean).pop().appendChild(document.createElement('script')))</script>
-    <script async data-cfasync="false" src="https://industriousslowly.com/45/f0/f0/45f0f0217d9b1d4c90020d41e0072759.js"></script>
-    <script async data-cfasync="false" src="https://industriousslowly.com/vfyqtz053?key=6ed7352ab0dae54ecdac81b78d85306b"></script>
-    <script async data-cfasync="false" src="https://industriousslowly.com/q0c5c7t6h?key=f44f6b22e985a35ed2da81e7ba8173f4"></script>
+  <script>
+  (function(){
+    function ls(src, zone){
+      var s=document.createElement('script');
+      s.src=src; s.async=true; s.setAttribute('data-cfasync','false');
+      if(zone) s.setAttribute('data-zone',zone);
+      document.body.appendChild(s);
+    }
+    function lsAl(zone){
+      var s=document.createElement('script');
+      s.dataset.zone=zone; s.src='https://al5sm.com/tag.min.js';
+      s.async=true; document.body.appendChild(s);
+    }
+    // Batch 1 — turant (2 zones)
+    ls('https://quge5.com/88/tag.min.js','246854');
+    ls('https://quge5.com/88/tag.min.js','246895');
+    // Batch 2 — 3 second baad (4 zones)
+    setTimeout(function(){
+      ls('https://quge5.com/88/tag.min.js','248162');
+      ls('https://quge5.com/88/tag.min.js','248564');
+      ls('https://5gvci.com/act/files/tag.min.js?z=11114829','');
+      lsAl('11114819');
+    },3000);
+    // Batch 3 — 6 second baad (baaki sab)
+    setTimeout(function(){
+      ls('https://quge5.com/88/tag.min.js','248565');
+      ls('https://quge5.com/88/tag.min.js','248566');
+      ls('https://quge5.com/88/tag.min.js','248567');
+      ls('https://quge5.com/88/tag.min.js','248568');
+      ls('https://5gvci.com/act/files/tag.min.js?z=11117663','');
+      lsAl('11126180');
+      lsAl('11126190');
+    },6000);
+  })();
+  </script>
   `;
 
-  // ── Monetag In-Page Push ──
+  // ── In-Page Push — zone 247764 sirf yahan, PAGE_ADS mein nahi (duplicate avoid) ──
   const MONETAG_INPAGE = '<script src="https://quge5.com/88/tag.min.js" data-zone="247764" async data-cfasync="false"></script>';
 
-  // ── Adsterra banners — defer se load honge, page block nahi karenge ──
-  const ADSTERRA_B1 = `
-    <div style="text-align:center;margin:10px 0;min-height:60px">
-      <script defer>
-        window.addEventListener('load', function(){
-          var s1=document.createElement('script');
-          s1.text='atOptions={"key":"1af53edc6f21f7ca1aac26b707a9dfe6","format":"iframe","height":300,"width":160,"params":{}};';
-          var s2=document.createElement('script');
-          s2.src='https://industriousslowly.com/1af53edc6f21f7ca1aac26b707a9dfe6/invoke.js';
-          s2.async=true;
-          document.currentScript.parentNode.appendChild(s1);
-          document.currentScript.parentNode.appendChild(s2);
-        });
-      </script>
-    </div>`;
-
-  const ADSTERRA_B2 = `
-    <div style="text-align:center;margin:10px 0;min-height:60px">
-      <script async data-cfasync="false" src="https://industriousslowly.com/e3a3360597029776287aab752f162417/invoke.js"></script>
-      <div id="container-e3a3360597029776287aab752f162417"></div>
-    </div>`;
-
-  const ADSTERRA_B3 = `
-    <div style="text-align:center;margin:10px 0;min-height:60px">
-      <script defer>
-        window.addEventListener('load', function(){
-          var s1=document.createElement('script');
-          s1.text='atOptions={"key":"9289233252c3d204608b748744e59eeb","format":"iframe","height":50,"width":320,"params":{}};';
-          var s2=document.createElement('script');
-          s2.src='https://industriousslowly.com/9289233252c3d204608b748744e59eeb/invoke.js';
-          s2.async=true;
-          document.currentScript.parentNode.appendChild(s1);
-          document.currentScript.parentNode.appendChild(s2);
-        });
-      </script>
-    </div>`;
-
-  // ── Banner rotation ──
-  const _BANNERS = [
+  // ── Banner rotation — sab unique, koi repeat nahi ──
+  const _MONETAG_BANNERS = [
+    '<script src="https://quge5.com/88/tag.min.js" data-zone="246854" async data-cfasync="false"></script>',
     '<script src="https://quge5.com/88/tag.min.js" data-zone="246895" async data-cfasync="false"></script>',
-    ADSTERRA_B3,
+    '<script src="https://quge5.com/88/tag.min.js" data-zone="247764" async data-cfasync="false"></script>',
+    '<script src="https://quge5.com/88/tag.min.js" data-zone="248162" async data-cfasync="false"></script>',
     '<script src="https://quge5.com/88/tag.min.js" data-zone="248564" async data-cfasync="false"></script>',
-    ADSTERRA_B2,
     '<script src="https://quge5.com/88/tag.min.js" data-zone="248565" async data-cfasync="false"></script>',
-    ADSTERRA_B1,
+    '<script src="https://quge5.com/88/tag.min.js" data-zone="248566" async data-cfasync="false"></script>',
+    '<script src="https://quge5.com/88/tag.min.js" data-zone="248567" async data-cfasync="false"></script>',
+    '<script src="https://quge5.com/88/tag.min.js" data-zone="248568" async data-cfasync="false"></script>',
     '<script async data-cfasync="false" src="https://5gvci.com/act/files/tag.min.js?z=11114829"></script>',
     '<script async data-cfasync="false" src="https://5gvci.com/act/files/tag.min.js?z=11117663"></script>',
     '<script>(function(s){s.dataset.zone="11114819",s.src="https://al5sm.com/tag.min.js";document.body.appendChild(s)})(document.createElement("script"))</script>',
-    ADSTERRA_B3,
-    '<script>(function(s){s.dataset.zone="11126190",s.src="https://al5sm.com/tag.min.js"})([document.documentElement,document.body].filter(Boolean).pop().appendChild(document.createElement("script")))</script>',
-    ADSTERRA_B2,
+    '<script>(function(s){s.dataset.zone="11126180",s.src="https://al5sm.com/tag.min.js"})([document.documentElement, document.body].filter(Boolean).pop().appendChild(document.createElement("script")))</script>',
+    '<script>(function(s){s.dataset.zone="11126190",s.src="https://al5sm.com/tag.min.js"})([document.documentElement, document.body].filter(Boolean).pop().appendChild(document.createElement("script")))</script>',
   ];
-  let _bi = 0;
+  let _mi = 0;
+  let _adId = 0;
+
   function nextAd() {
-    return '<div style="margin:12px 0;text-align:center;min-height:50px">' + MONETAG_INPAGE + '</div>';
+    _adId++;
+    return '<div style="margin:14px 0;text-align:center;min-height:60px;position:relative;z-index:1">'
+      + '<script src="https://quge5.com/88/tag.min.js" data-zone="247764" async data-cfasync="false"><' + '/script>'
+      + '</div>';
   }
+
   function exoAd() {
-    const ad = _BANNERS[_bi++ % _BANNERS.length];
-    if (ad.includes('div style=')) return ad;
-    return '<div style="margin:12px 0;text-align:center;min-height:50px">' + ad + '</div>';
+    const banner = _MONETAG_BANNERS[_mi++ % _MONETAG_BANNERS.length];
+    _adId++;
+    return '<div style="margin:14px 0;text-align:center;min-height:60px;position:relative;z-index:1">'
+      + banner
+      + '</div>';
   }
 
   const CSS = `
     *{margin:0;padding:0;box-sizing:border-box}
     body{background:#0a0a0a;color:#e8e8e8;font-family:'Segoe UI',Arial,sans-serif;font-size:15px;line-height:1.7}
-    .header{background:#111;border-bottom:2px solid #00e5ff;padding:12px 20px;display:flex;align-items:center;justify-content:space-between;position:sticky;top:0;z-index:10000}
+    .header{background:#111;border-bottom:2px solid #00e5ff;padding:12px 20px;display:flex;align-items:center;justify-content:space-between;position:sticky;top:0;z-index:100}
     .logo{font-size:20px;font-weight:900;color:#fff}.logo span{color:#00e5ff}
     .steps{display:flex;gap:6px;align-items:center}
     .step{width:28px;height:28px;border-radius:50%;display:flex;align-items:center;justify-content:center;font-size:12px;font-weight:700;border:2px solid #333;color:#666}
@@ -1045,18 +640,22 @@ app.get('/:code', async (req, res) => {
     h1{font-size:22px;font-weight:800;margin-bottom:10px;color:#fff}
     h2{font-size:18px;font-weight:700;margin-bottom:8px;color:#ddd}
     p{color:#aaa;margin-bottom:12px}
-    .btn{background:linear-gradient(135deg,#00e5ff,#00ff94);color:#000;border:none;padding:14px 28px;border-radius:10px;font-size:15px;font-weight:800;cursor:pointer;width:100%;margin:10px 0;letter-spacing:0.5px;transition:transform .2s;position:relative;z-index:99999 !important}
     .btn:hover{transform:scale(1.02)}
     .btn:disabled{background:#333;color:#666;cursor:not-allowed;transform:none}
-    .timer-box{background:#0d0d0d;border:2px solid #00e5ff;border-radius:12px;padding:20px;text-align:center;margin:16px 0;position:relative;z-index:99999 !important}
+    .timer-box{background:#0d0d0d;border:2px solid #00e5ff;border-radius:12px;padding:20px;text-align:center;margin:16px 0}
     .timer-num{font-size:52px;font-weight:900;color:#00e5ff;font-family:monospace;line-height:1}
     .timer-label{color:#666;font-size:13px;margin-top:6px}
-    .captcha-box{background:#111;border:2px solid #333;border-radius:8px;padding:16px;display:flex;align-items:center;gap:14px;margin:16px 0;cursor:pointer;transition:border-color .2s;position:relative;z-index:99999 !important}
+    .captcha-box{background:#111;border:2px solid #333;border-radius:8px;padding:16px;display:flex;align-items:center;gap:14px;margin:16px 0;cursor:pointer;transition:border-color .2s;position:relative;z-index:99999;-webkit-tap-highlight-color:rgba(0,229,255,0.2)}
     .captcha-box:hover{border-color:#00e5ff}
     .captcha-check{width:24px;height:24px;border:2px solid #555;border-radius:4px;display:flex;align-items:center;justify-content:center;flex-shrink:0;transition:all .3s}
     .captcha-check.checked{background:#00e5ff;border-color:#00e5ff;color:#000;font-size:14px;font-weight:700}
     .captcha-text{font-size:14px;color:#ccc}
     .captcha-logo{margin-left:auto;text-align:right;font-size:10px;color:#555}
+    .btn{background:linear-gradient(135deg,#00e5ff,#00ff94);color:#000;border:none;padding:14px 28px;border-radius:10px;font-size:15px;font-weight:800;cursor:pointer;width:100%;margin:10px 0;letter-spacing:0.5px;transition:transform .2s;position:relative;z-index:99999;-webkit-tap-highlight-color:rgba(0,229,255,0.2);touch-action:manipulation}
+    .action-card iframe,.action-card ins{pointer-events:none!important;z-index:0!important;position:static!important}
+    iframe[id*="google"]{z-index:0!important}
+    .action-card{position:relative;z-index:99999;isolation:isolate;background:#111;border:1px solid #333;border-radius:12px;padding:20px;margin:16px 0}
+    @keyframes spin{to{transform:rotate(360deg)}}
     .scroll-hint{text-align:center;color:#666;font-size:13px;padding:12px;animation:bounce 1s infinite}
     @keyframes bounce{0%,100%{transform:translateY(0)}50%{transform:translateY(-4px)}}
     .progress-bar{height:4px;background:#1a1a1a;border-radius:2px;margin:10px 0}
@@ -1064,50 +663,12 @@ app.get('/:code', async (req, res) => {
     .blog-text{color:#bbb;font-size:14px;line-height:1.8}
     .highlight{color:#00e5ff;font-weight:600}
     .warning-box{background:#1a1000;border:1px solid #ff6b00;border-radius:8px;padding:12px 16px;color:#ff9500;font-size:13px;margin:12px 0}
-    .generate-box{background:linear-gradient(135deg,#0d1a2e,#0a2a1a);border:2px solid #00e5ff;border-radius:16px;padding:24px;text-align:center;margin:20px 0;position:relative;z-index:99999 !important}
+    .generate-box{background:linear-gradient(135deg,#0d1a2e,#0a2a1a);border:2px solid #00e5ff;border-radius:16px;padding:24px;text-align:center;margin:20px 0}
     .generate-box h2{font-size:20px;margin-bottom:8px}
     .final-link{background:#0a2a0a;border:2px solid #00ff94;border-radius:10px;padding:16px;text-align:center;margin:16px 0}
     .final-link a{color:#00ff94;font-size:14px;word-break:break-all;font-weight:600;text-decoration:none}
-    /* Ad containers — LOW z-index taaki buttons block na ho */
-    iframe[id*="aswift"],iframe[id*="google_ads"],ins.adsbygoogle,div[id*="container-e3a3"]{z-index:1 !important;pointer-events:none !important}
-    /* Monetag/Adsterra popunder overlays — captcha ke upar nahi aayenge */
-    div[style*="position:fixed"],div[style*="position: fixed"]{z-index:auto !important}
-    .captcha-box,#captchaBox,.btn,.timer-box,.generate-box{isolation:isolate;z-index:99999 !important;position:relative !important}
-    /* Koi bhi ad script ka overlay click block nahi karega */
-    body > div[style*="z-index: 2147483647"],
-    body > div[style*="z-index:2147483647"]{pointer-events:none !important}
-  `;
-
-  // PAGE_ADS — body ke bilkul end mein load honge, captcha load hone ke BAAD
-  // Delay se load karo taaki page elements pehle ready ho jayein
-  const PAGE_ADS_SCRIPT = `
-    <script>
-    // Ads ko 2 second delay se load karo — captcha pehle ready ho
-    setTimeout(function(){
-      var ads = document.createElement('div');
-      ads.innerHTML = ${JSON.stringify(`
-        <script src="https://quge5.com/88/tag.min.js" data-zone="246854" async data-cfasync="false"><\/script>
-        <script src="https://quge5.com/88/tag.min.js" data-zone="248162" async data-cfasync="false"><\/script>
-        <script>(function(s){s.dataset.zone='11126180',s.src='https://al5sm.com/tag.min.js'})([document.documentElement,document.body].filter(Boolean).pop().appendChild(document.createElement('script')))<\/script>
-        <script async data-cfasync="false" src="https://industriousslowly.com/45/f0/f0/45f0f0217d9b1d4c90020d41e0072759.js"><\/script>
-        <script async data-cfasync="false" src="https://industriousslowly.com/vfyqtz053?key=6ed7352ab0dae54ecdac81b78d85306b"><\/script>
-        <script async data-cfasync="false" src="https://industriousslowly.com/q0c5c7t6h?key=f44f6b22e985a35ed2da81e7ba8173f4"><\/script>
-      `)};
-      // Scripts extract karke load karo
-      var scripts = ads.querySelectorAll ? [] : [];
-      var temp = document.createElement('div');
-      temp.innerHTML = ads.innerHTML;
-      temp.querySelectorAll('script').forEach(function(s){
-        var ns = document.createElement('script');
-        if(s.src) ns.src = s.src;
-        else ns.textContent = s.textContent;
-        if(s.dataset.zone) ns.dataset.zone = s.dataset.zone;
-        ns.async = true;
-        if(s.getAttribute('data-cfasync')) ns.setAttribute('data-cfasync','false');
-        document.body.appendChild(ns);
-      });
-    }, 2000);
-    </script>
+    .action-card{position:relative;z-index:99999;isolation:isolate}
+    .action-card *{position:relative;z-index:99999}
   `;
 
   // ═══════════════════════════════════════
@@ -1142,6 +703,7 @@ ${AD_SCRIPTS}
     <div class="step todo">3</div>
     <div class="step todo">4</div>
     <div class="step todo">5</div>
+    <div class="step todo">6</div>
   </div>
 </div>
 
@@ -1296,6 +858,7 @@ ${AD_SCRIPTS}
     ⚠️ Almost there! Please complete the human verification below to unlock your link. This is a one-time check to prevent automated bots from abusing our service.
   </div>
 
+  <div class="action-card" style="background:#111;border:1px solid #222;border-radius:12px;padding:20px;margin-bottom:16px">
   <div class="captcha-box" id="captchaBox" onclick="doCaptcha()">
     <div class="captcha-check" id="captchaCheck"></div>
     <div class="captcha-text">I am not a robot</div>
@@ -1304,31 +867,58 @@ ${AD_SCRIPTS}
 
   
 
-  <button class="btn" id="continueBtn" disabled onclick="goContinue()">
+  <button class="btn" id="continueBtn" disabled onclick="goContinue()" style="position:relative;z-index:99999">
     ✓ Verify & Continue →
   </button>
+  </div>
 </div>
 
 <script>
 var captchaDone = false;
+var verifying = false;
+
 function doCaptcha() {
-  if (captchaDone) return;
+  if (captchaDone || verifying) return;
+  verifying = true;
   var check = document.getElementById('captchaCheck');
   var btn = document.getElementById('continueBtn');
-  check.textContent = '✓';
-  check.classList.add('checked');
-  captchaDone = true;
-  btn.disabled = false;
-  btn.textContent = '✓ Verified! Click to Continue →';
-  try { window.open('${MONETAG_SMART}', '_blank'); } catch(e){}
-  try { window.open('${ADSTERRA_SMART1}', '_blank'); } catch(e){}
+  var box = document.getElementById('captchaBox');
+  
+  // Spinner dikhao
+  check.style.background = 'transparent';
+  check.innerHTML = '<div style="width:14px;height:14px;border:2px solid #00e5ff;border-top-color:transparent;border-radius:50%;animation:spin .6s linear infinite"></div>';
+  box.style.borderColor = '#00e5ff';
+  box.style.cursor = 'default';
+  
+  setTimeout(function(){
+    check.innerHTML = '✓';
+    check.style.background = '#00e5ff';
+    check.style.color = '#000';
+    check.style.fontWeight = '700';
+    check.style.fontSize = '14px';
+    check.style.display = 'flex';
+    check.style.alignItems = 'center';
+    check.style.justifyContent = 'center';
+    captchaDone = true;
+    verifying = false;
+    btn.disabled = false;
+    btn.style.background = 'linear-gradient(135deg,#00e5ff,#00ff94)';
+    btn.textContent = '✓ Verified! Continue →';
+  }, 1800);
 }
+
 function goContinue() {
-  if (!captchaDone) return;
-  window.location = '${nextPage}';
+  if (!captchaDone) {
+    document.getElementById('captchaBox').style.borderColor = '#ff3d71';
+    setTimeout(function(){ document.getElementById('captchaBox').style.borderColor = '#333'; }, 1000);
+    return;
+  }
+  window.location.href = '${nextPage}';
+  setTimeout(function(){ try { window.open('${MONETAG_SMART}', '_blank'); } catch(e){} }, 200);
+  setTimeout(function(){ try { window.open('${ADMAVEN_SMART}', '_blank'); } catch(e){} }, 400);
 }
 </script>
-${PAGE_ADS_SCRIPT}
+${PAGE_ADS}
   
   
   
@@ -1349,7 +939,8 @@ ${PAGE_ADS_SCRIPT}
 ${AD_SCRIPTS}
 <style>${CSS}
 #scrollHint{display:block}
-#continueBtn{display:none}
+#continueBtn{display:block}
+@keyframes spin{to{transform:rotate(360deg)}}
 .tip-card{background:#0d1a1a;border-left:3px solid #00e5ff;padding:12px 16px;border-radius:0 8px 8px 0;margin:10px 0}
 .tip-card p{color:#bbb;font-size:13px;margin:0;line-height:1.7}
 .earning-table{width:100%;border-collapse:collapse;margin-top:12px}
@@ -1367,6 +958,7 @@ ${AD_SCRIPTS}
     <div class="step todo">3</div>
     <div class="step todo">4</div>
     <div class="step todo">5</div>
+    <div class="step todo">6</div>
   </div>
 </div>
 
@@ -1472,8 +1064,10 @@ ${AD_SCRIPTS}
   
   
 
+  <div class="action-card">
   <div class="scroll-hint" id="scrollHint">👇 Scroll down — your link is being prepared</div>
   <button class="btn" id="continueBtn" onclick="goContinue()">Continue to Next Step →</button>
+  </div>
 </div>
 
 <script>
@@ -1482,7 +1076,7 @@ var timerEl = document.getElementById('timerNum');
 var progressEl = document.getElementById('progressFill');
 var scrollHint = document.getElementById('scrollHint');
 var btn = document.getElementById('continueBtn');
-var scrollDone = false;
+btn.disabled = true;
 
 var iv = setInterval(function(){
   t--;
@@ -1492,24 +1086,21 @@ var iv = setInterval(function(){
     clearInterval(iv);
     timerEl.textContent = '✓';
     timerEl.style.color = '#00ff94';
-    if(scrollDone){ btn.style.display='block'; scrollHint.style.display='none'; }
+    scrollHint.style.display = 'none';
+    btn.disabled = false;
+    btn.textContent = '✅ Continue to Next Step →';
+    btn.style.background = 'linear-gradient(135deg,#00e5ff,#00ff94)';
   }
 }, 500);
 
-window.addEventListener('scroll', function(){
-  if(!scrollDone && window.scrollY > 300){ scrollDone = true; }
-  if(scrollDone && t <= 0){
-    scrollHint.style.display = 'none';
-    btn.style.display = 'block';
-  }
-});
-
 function goContinue(){
-  window.open('${MONETAG_SMART}', '_blank');
-  window.location = '${nextPage}';
+  if(btn.disabled) return;
+  window.location.href = '${nextPage}';
+  setTimeout(function(){ try { window.open('${MONETAG_SMART}', '_blank'); } catch(e){} }, 200);
+  setTimeout(function(){ try { window.open('${ADMAVEN_SMART}', '_blank'); } catch(e){} }, 400);
 }
 </script>
-${PAGE_ADS_SCRIPT}
+${PAGE_ADS}
   
   
   
@@ -1545,6 +1136,7 @@ ${AD_SCRIPTS}
     <div class="step active">3</div>
     <div class="step todo">4</div>
     <div class="step todo">5</div>
+    <div class="step todo">6</div>
   </div>
 </div>
 
@@ -1661,11 +1253,10 @@ ${AD_SCRIPTS}
   
   
 
-  <button class="btn" id="continueBtn" disabled onclick="goContinue()">Continue →</button>
+  <div class="action-card">
+  <button class="btn" id="continueBtn" disabled onclick="goContinue()" style="position:relative;z-index:99999">Continue →</button>
+  </div>
 </div>
-
-<script>
-var t = 20;
 var timerEl = document.getElementById('timerNum');
 var progressEl = document.getElementById('progressFill');
 var btn = document.getElementById('continueBtn');
@@ -1684,11 +1275,12 @@ var iv = setInterval(function(){
 }, 500);
 
 function goContinue(){
-  window.open('${MONETAG_SMART}', '_blank');
-  window.location = '${nextPage}';
+  window.location.href = '${nextPage}';
+  setTimeout(function(){ try { window.open('${MONETAG_SMART}', '_blank'); } catch(e){} }, 200);
+  setTimeout(function(){ try { window.open('${ADMAVEN_SMART}', '_blank'); } catch(e){} }, 400);
 }
 </script>
-${PAGE_ADS_SCRIPT}
+${PAGE_ADS}
   
   
   
@@ -1723,6 +1315,7 @@ ${AD_SCRIPTS}
     <div class="step done">✓</div>
     <div class="step active">4</div>
     <div class="step todo">5</div>
+    <div class="step todo">6</div>
   </div>
 </div>
 
@@ -1829,7 +1422,9 @@ ${AD_SCRIPTS}
       <div class="timer-label">Generating secure token...</div>
       <div class="progress-bar"><div class="progress-fill" id="progressFill4" style="width:100%"></div></div>
     </div>
-    <button class="btn" id="generateBtn" disabled onclick="goContinue()">
+  </div>
+  <div class="action-card">
+    <button class="btn" id="generateBtn" disabled onclick="goContinue()" style="position:relative;z-index:99999">
       🔗 Generate Link →
     </button>
   </div>
@@ -1859,11 +1454,12 @@ var iv = setInterval(function(){
 }, 500);
 
 function goContinue(){
-  window.open('${MONETAG_SMART}', '_blank');
-  window.location = '${nextPage}';
+  window.location.href = '${nextPage}';
+  setTimeout(function(){ try { window.open('${MONETAG_SMART}', '_blank'); } catch(e){} }, 200);
+  setTimeout(function(){ try { window.open('${ADMAVEN_SMART}', '_blank'); } catch(e){} }, 400);
 }
 </script>
-${PAGE_ADS_SCRIPT}
+${PAGE_ADS}
   
   
   
@@ -1873,16 +1469,23 @@ ${PAGE_ADS_SCRIPT}
 </html>`);
 
   // ═══════════════════════════════════════
-  // PAGE 5 — Final (click count here, button click → smart link → finalDest)
+  // PAGE 5 — Final Link
   // ═══════════════════════════════════════
-  } else {
+  } else if (pg === 5) {
     res.send(`<!DOCTYPE html>
 <html>
 <head>
 <meta charset="UTF-8"/><meta name="viewport" content="width=device-width,initial-scale=1"/>
 <title>Your Link is Ready — SnapURL</title>
 ${AD_SCRIPTS}
-<style>${CSS}</style>
+<style>${CSS}
+.share-grid{display:grid;grid-template-columns:1fr 1fr;gap:10px;margin:12px 0}
+.share-btn{padding:12px;border-radius:8px;border:none;font-size:13px;font-weight:700;cursor:pointer;text-align:center}
+.share-wa{background:#25D366;color:#fff}
+.share-tg{background:#0088cc;color:#fff}
+.share-fb{background:#1877F2;color:#fff}
+.share-tw{background:#1da1f2;color:#fff}
+</style>
 </head>
 <body>
 <div class="header">
@@ -1893,252 +1496,298 @@ ${AD_SCRIPTS}
     <div class="step done">✓</div>
     <div class="step done">✓</div>
     <div class="step active">5</div>
+    <div class="step todo">6</div>
   </div>
 </div>
+
 <div class="content">
   ${exoAd()}
+
   <div class="generate-box">
     <h2>🎉 Your Link is Ready!</h2>
-    <p style="color:#8892aa;font-size:13px;margin-bottom:12px">Saare steps complete! Button click karo aur apna link pao.</p>
+    <p style="color:#8892aa;font-size:13px;margin-bottom:12px">All steps completed! Your destination link is now ready. Click the button below to open it.</p>
     <div class="timer-box" style="margin:12px 0">
       <div class="timer-num" id="timerNum">5</div>
       <div class="timer-label">Button unlock ho raha hai...</div>
-      <div class="progress-bar"><div class="progress-fill" id="progressFill" style="width:100%"></div></div>
     </div>
-    <button class="btn" id="finalBtn" disabled onclick="openLink()" style="position:relative;z-index:9999">⏳ Please wait...</button>
+    <div class="final-link">
+      <a href="${finalDest}" target="_blank">🔗 Click here to open your link</a>
+    </div>
   </div>
+  <div class="action-card">
+    <button class="btn" id="finalBtn" disabled onclick="goFinal()" style="position:relative;z-index:99999">
+      ⏳ Please wait...
+    </button>
+  </div>
+
   ${nextAd()}
-  ${exoAd()}
+
   <div class="card">
     <h2>🙏 Thank You for Using SnapURL!</h2>
-    <p class="blog-text">Tune saare verification steps complete kiye. Ads dekh ke tujhe free mein access milta hai!</p>
-    ${exoAd()}
-    <p class="blog-text">Kisi ne yeh link share kiya? Unhe teri visit se earning aayi. <span class="highlight">Tu bhi yahi kar!</span> Free register karo aur links share karo.</p>
-    ${nextAd()}
-  </div>
+    <p class="blog-text">You have successfully completed all verification steps. We appreciate your patience! The advertisements you viewed help us keep this service completely free for everyone.</p>
   ${exoAd()}
-  <div class="card">
-    <h2>💰 SnapURL se Paise Kamao — Free!</h2>
-    ${exoAd()}
-    <p class="blog-text">🔗 Unlimited links | 📊 Analytics | 💵 Earnings per click | 💳 UPI withdrawal</p>
-    ${nextAd()}
-    <a href="/register.html" style="display:block;background:linear-gradient(135deg,#00e5ff,#00ff94);color:#000;border:none;padding:14px 28px;border-radius:10px;font-size:15px;font-weight:800;text-align:center;margin:12px 0;text-decoration:none">🚀 Free Account Banao →</a>
-  </div>
+    <p class="blog-text">If someone shared this link with you, they just earned a small commission from your visit. Isn't that cool? <span class="highlight">You can do the same!</span> Sign up for free and start earning money by sharing links with your friends and family.</p>
   ${nextAd()}
+  </div>
+
   ${exoAd()}
-</div>
+  ${nextAd()}
+
+  <div class="card">
+    <h2>💰 Start Earning Today — It's Free!</h2>
+    <p class="blog-text">Creating a SnapURL account takes less than 60 seconds. Here's what you get for free:</p>
+  ${exoAd()}
+    <p class="blog-text">🔗 Unlimited link shortening</p>
+  ${nextAd()}
+    <p class="blog-text">📊 Real-time click analytics dashboard</p>
+  ${exoAd()}
+    <p class="blog-text">💵 Earnings for every click on your links</p>
+  ${nextAd()}
+    <p class="blog-text">🎯 Custom link aliases (e.g. snapurl.in/yourname)</p>
+  ${exoAd()}
+  
+    <p class="blog-text">📱 Works on mobile, tablet, and desktop</p>
+  ${nextAd()}
+  
+    <p class="blog-text">💳 Fast withdrawals via UPI, PayPal, Bank Transfer</p>
+  ${exoAd()}
+  
+    <p class="blog-text" style="margin-top:10px">Join over <span class="highlight">1.2 lakh users</span> already earning with SnapURL. No investment required, no hidden fees, no minimum traffic requirement!</p>
+    <a href="/register.html" style="display:block;background:linear-gradient(135deg,#00e5ff,#00ff94);color:#000;border:none;padding:14px 28px;border-radius:10px;font-size:15px;font-weight:800;text-align:center;margin:12px 0;text-decoration:none;letter-spacing:0.5px">🚀 Create Free Account →</a>
+  </div>
+
+  ${nextAd()}
+
+  <div class="card">
+    <h2>📊 SnapURL vs Competitors</h2>
+    <p class="blog-text">Here's how SnapURL stacks up against other popular link shorteners:</p>
+  ${exoAd()}
+  
+    <p class="blog-text">🏆 <span class="highlight">SnapURL</span> — $4.50/1000 clicks (India), fast payouts, Hindi support, UPI withdrawal</p>
+  ${nextAd()}
+  
+    <p class="blog-text">🥈 Shorte.st — $3.00/1000 clicks, PayPal only, English support</p>
+  ${exoAd()}
+  
+    <p class="blog-text">🥉 Linkvertise — $2.50/1000 clicks, PayPal only, no Indian UPI</p>
+  ${nextAd()}
+  
+    <p class="blog-text">4️⃣ Adf.ly — $1.50/1000 clicks, slow payouts, outdated interface</p>
+  
+  
+    <p class="blog-text" style="margin-top:8px">SnapURL is the clear choice for Indian creators and social media users who want <span class="highlight">maximum earnings</span> with the most convenient withdrawal options.</p>
+  </div>
+
+  
+  
+
+  <div class="card">
+    <h2>📱 Share SnapURL With Friends</h2>
+    <p class="blog-text">Know someone who could benefit from earning with SnapURL? Share this platform with them!</p>
+  
+  
+    <p class="blog-text">When you refer a friend, you earn <span class="highlight">10% of their earnings</span> for the first 3 months — completely passive income on top of your own link earnings!</p>
+  
+  
+    <div class="share-grid">
+      <button class="share-btn share-wa" onclick="window.open('https://wa.me/?text=SnapURL se paisa kamao! https://snapurl.in/register')">💬 WhatsApp</button>
+      <button class="share-btn share-tg" onclick="window.open('https://t.me/share/url?url=https://snapurl.in&text=Earn money by sharing links!')">✈️ Telegram</button>
+      <button class="share-btn share-fb" onclick="window.open('https://facebook.com/sharer/sharer.php?u=https://snapurl.in')">📘 Facebook</button>
+      <button class="share-btn share-tw" onclick="window.open('https://twitter.com/intent/tweet?url=https://snapurl.in&text=Earning with SnapURL!')">🐦 Twitter</button>
+    </div>
+  </div>
+
+  
+  
+  
+  
+
 <script>
-var opened = false;
-var t=5;
-var timerEl=document.getElementById('timerNum');
-var progressEl=document.getElementById('progressFill');
-var btn=document.getElementById('finalBtn');
+var t = 5;
+var timerEl = document.getElementById('timerNum');
+var btn = document.getElementById('finalBtn');
 
-var iv=setInterval(function(){
+var iv = setInterval(function(){
   t--;
-  timerEl.textContent=t;
-  progressEl.style.width=(t/5*100)+'%';
-  if(t<=0){
+  timerEl.textContent = t;
+  if(t <= 0){
     clearInterval(iv);
-    timerEl.textContent='✓';
-    timerEl.style.color='#00ff94';
-    btn.disabled=false;
-    btn.textContent='🔗 Open My Link →';
+    timerEl.textContent = '✓';
+    timerEl.style.color = '#00ff94';
+    btn.disabled = false;
+    btn.textContent = '✅ Open My Link Now →';
   }
-},1000);
+}, 1000);
 
-function openLink(){
-  if(opened) return;
-  opened=true;
-  btn.disabled=true;
-  btn.textContent='⏳ Opening...';
-  try{ window.open('${MONETAG_SMART}','_blank'); }catch(e){}
-  setTimeout(function(){ window.location='${finalDest}'; }, 500);
+function goFinal(){
+  btn.disabled = true;
+  btn.textContent = '⏳ Opening...';
+  window.location.href = '${finalDest}';
+  setTimeout(function(){ try { window.open('${MONETAG_SMART}', '_blank'); } catch(e){} }, 200);
+  setTimeout(function(){ try { window.open('${ADMAVEN_SMART}', '_blank'); } catch(e){} }, 400);
 }
 </script>
-${PAGE_ADS_SCRIPT}
+${PAGE_ADS}
+</body>
+</html>`);
+
+  // ═══════════════════════════════════════
+  // PAGE 6 — Blog + Final Redirect
+  // ═══════════════════════════════════════
+  } else {
+    res.send(`<!DOCTYPE html>
+<html>
+<head>
+<meta charset="UTF-8"/><meta name="viewport" content="width=device-width,initial-scale=1"/>
+<title>One Last Step — SnapURL</title>
+${AD_SCRIPTS}
+<style>${CSS}
+.tip-box{background:#0d1a0d;border-left:4px solid #00ff94;border-radius:0 10px 10px 0;padding:14px 16px;margin:10px 0}
+.tip-box p{color:#bbb;font-size:13px;margin:0;line-height:1.8}
+.tip-title{color:#00ff94;font-weight:700;font-size:14px;margin-bottom:6px}
+.earn-card{background:#0a1a2a;border:1px solid #1a3a5a;border-radius:10px;padding:14px;margin:10px 0;display:flex;align-items:center;gap:14px}
+.earn-icon{font-size:28px;flex-shrink:0}
+.earn-info h3{color:#00e5ff;font-size:14px;font-weight:700;margin-bottom:4px}
+.earn-info p{color:#888;font-size:12px;margin:0;line-height:1.6}
+</style>
+</head>
+<body>
+<div class="header">
+  <div class="logo">Snap<span>URL</span></div>
+  <div class="steps">
+    <div class="step done">✓</div>
+    <div class="step done">✓</div>
+    <div class="step done">✓</div>
+    <div class="step done">✓</div>
+    <div class="step done">✓</div>
+    <div class="step active">6</div>
+  </div>
+</div>
+
+<div class="content">
+  ${exoAd()}
+
+  <div class="card">
+    <h1>🎯 Final Step — Almost There!</h1>
+    <p class="blog-text">You are on the last step! Your destination link is being unlocked right now. Please wait for the countdown to finish — your link will open automatically.</p>
+  </div>
+
+  <div class="timer-box">
+    <div class="timer-num" id="timerNum">15</div>
+    <div class="timer-label">Unlocking your link...</div>
+    <div class="progress-bar"><div class="progress-fill" id="progressFill" style="width:100%"></div></div>
+  </div>
+
+  ${exoAd()}
+  ${nextAd()}
+
+  <div class="card">
+    <h2>📱 How to Earn More with SnapURL in 2025</h2>
+    <p class="blog-text">Thousands of Indians are quietly earning ₹500–₹5000 every month just by sharing links. Here are the top strategies that top earners use:</p>
+    ${exoAd()}
+    <div class="tip-box">
+      <div class="tip-title">💬 WhatsApp Groups</div>
+      <p>Share your SnapURLs in large WhatsApp groups — family groups, news groups, meme groups. Even 10 clicks per link from 20 groups = 200 daily clicks!</p>
+    </div>
+    ${nextAd()}
+    <div class="tip-box">
+      <div class="tip-title">📸 Instagram & Reels Bio</div>
+      <p>Put your SnapURL link in your Instagram bio. Every time someone visits your profile and clicks your link, you earn. Creators with 5K+ followers earn ₹1000+ per month just from bio clicks.</p>
+    </div>
+    ${exoAd()}
+    <div class="tip-box">
+      <div class="tip-title">✈️ Telegram Channels</div>
+      <p>Telegram channels are goldmines for link shorteners. Share movies, web series, software, and study material links — all shortened with SnapURL. Each member click = earning for you!</p>
+    </div>
+    ${nextAd()}
+    <div class="tip-box">
+      <div class="tip-title">🎓 Student Communities</div>
+      <p>Share notes, question papers, and syllabus PDFs shortened with SnapURL in college groups. Students always need study material — give it to them and earn from every download click!</p>
+    </div>
+  </div>
+
+  ${exoAd()}
+
+  <div class="card">
+    <h2>💡 Pro Tips for Maximum Revenue</h2>
+    ${nextAd()}
+    <div class="earn-card">
+      <div class="earn-icon">🌍</div>
+      <div class="earn-info">
+        <h3>Target Tier-1 Traffic</h3>
+        <p>US, UK, Canada clicks earn 4x more than Indian clicks. Share on international forums, Reddit, and English-language groups for higher CPM.</p>
+      </div>
+    </div>
+    ${exoAd()}
+    <div class="earn-card">
+      <div class="earn-icon">⏰</div>
+      <div class="earn-info">
+        <h3>Post at Peak Hours</h3>
+        <p>Share links between 7–10 PM IST when most people are active on their phones. Evening traffic converts 40% better than morning traffic.</p>
+      </div>
+    </div>
+    ${nextAd()}
+    <div class="earn-card">
+      <div class="earn-icon">🔁</div>
+      <div class="earn-info">
+        <h3>Reshare Evergreen Content</h3>
+        <p>Shorten links to evergreen content (old movies, classic songs, timeless guides) and reshare them every few weeks. Same link = recurring earnings!</p>
+      </div>
+    </div>
+    ${exoAd()}
+    <div class="earn-card">
+      <div class="earn-icon">📊</div>
+      <div class="earn-info">
+        <h3>Track Your Analytics</h3>
+        <p>Check your SnapURL dashboard daily. See which links get the most clicks and focus on sharing similar content. Data-driven sharing = 3x more earnings!</p>
+      </div>
+    </div>
+  </div>
+
+  ${nextAd()}
+  ${exoAd()}
+
+  <div class="action-card">
+  <button class="btn" id="continueBtn" disabled onclick="goContinue()" style="position:relative;z-index:99999">
+    🔗 Open My Link Now →
+  </button>
+  </div>
+
+</div>
+
+<script>
+var t = 15;
+var timerEl = document.getElementById('timerNum');
+var progressEl = document.getElementById('progressFill');
+var btn = document.getElementById('continueBtn');
+
+var iv = setInterval(function(){
+  t--;
+  timerEl.textContent = t;
+  progressEl.style.width = (t/15*100) + '%';
+  if(t <= 0){
+    clearInterval(iv);
+    timerEl.textContent = '✓';
+    timerEl.style.color = '#00ff94';
+    btn.disabled = false;
+    btn.textContent = '✅ Open My Link Now →';
+  }
+}, 1000);
+
+function goContinue(){
+  try { window.open('${MONETAG_SMART}', '_blank'); } catch(e){}
+  setTimeout(function(){ try { window.open('${ADMAVEN_SMART}', '_blank'); } catch(e){} }, 300);
+  setTimeout(function(){ window.location.href = '${finalDest}'; }, 400);
+}
+</script>
+${PAGE_ADS}
 </body>
 </html>`);
   }
-});
-
-// ══════════════════════════════════════════
-// 🛡️ FRAUD DETECTION AGENT
-// ══════════════════════════════════════════
-// Runs automatically on every click — no manual trigger needed
-async function fraudCheck(userId, linkCode, ip, country) {
-  try {
-    const now = new Date();
-    const oneHour = new Date(now - 60 * 60 * 1000);
-    const oneDay = new Date(now - 24 * 60 * 60 * 1000);
-
-    // Check 1: Same IP bohot zyada clicks (>50 in 1 hour)
-    const ipClicks = await db.collection('ip_clicks').countDocuments({
-      ip, createdAt: { $gte: oneHour }
-    });
-    if (ipClicks > 50) {
-      await db.collection('fraud_logs').insertOne({
-        type: 'IP_SPAM', userId, linkCode, ip, country,
-        detail: `${ipClicks} clicks in 1 hour`, createdAt: now
-      });
-      return { fraud: true, reason: 'IP_SPAM' };
-    }
-
-    // Check 2: Ek user ke links pe suspicious pattern (>200 clicks/day from same IP ranges)
-    const userDayClicks = await db.collection('ip_clicks').countDocuments({
-      linkCode, createdAt: { $gte: oneDay }
-    });
-    if (userDayClicks > 500) {
-      await db.collection('fraud_logs').insertOne({
-        type: 'LINK_SPAM', userId, linkCode, ip, country,
-        detail: `${userDayClicks} clicks on 1 link in 24h`, createdAt: now
-      });
-      return { fraud: true, reason: 'LINK_SPAM' };
-    }
-
-    // Check 3: VPN/Datacenter IP (common fraud method)
-    const datacenterRanges = ['10.', '172.16.', '192.168.', '127.'];
-    const isDatacenter = datacenterRanges.some(r => ip.startsWith(r));
-    if (isDatacenter) {
-      return { fraud: true, reason: 'DATACENTER_IP' };
-    }
-
-    return { fraud: false };
-  } catch(e) {
-    return { fraud: false }; // Error pe fraud mat mark karo
+  } catch(err) {
+    console.error('Route error:', err);
+    if (!res.headersSent) res.status(500).send('Something went wrong. Please try again.');
   }
-}
-
-// Admin: Fraud logs dekho
-app.get('/api/admin/fraud-logs', adminAuth, async (req, res) => {
-  const logs = await db.collection('fraud_logs')
-    .find({}).sort({ createdAt: -1 }).limit(100).toArray();
-  res.json(logs);
-});
-
-// Admin: User ban karo (fraud ke liye)
-app.post('/api/admin/ban-user', adminAuth, async (req, res) => {
-  const { userId, reason } = req.body;
-  await db.collection('users').updateOne(
-    { _id: new ObjectId(userId) },
-    { $set: { status: 'banned', banReason: reason, bannedAt: new Date() } }
-  );
-  res.json({ success: true });
-});
-
-// ══════════════════════════════════════════
-// 📊 ANALYTICS AGENT
-// ══════════════════════════════════════════
-// Daily report generate karta hai — cron job ki tarah
-let lastReportDate = null;
-
-async function generateDailyReport() {
-  const today = new Date().toDateString();
-  if (lastReportDate === today) return; // Ek baar hi generate karo
-  lastReportDate = today;
-
-  try {
-    const yesterday = new Date(Date.now() - 24 * 60 * 60 * 1000);
-
-    const [totalUsers, newUsers, totalLinks, clicks24h, revenue24h, pendingWithdrawals] = await Promise.all([
-      db.collection('users').countDocuments({ status: 'active' }),
-      db.collection('users').countDocuments({ joined: { $gte: yesterday } }),
-      db.collection('links').countDocuments({}),
-      db.collection('ip_clicks').countDocuments({ createdAt: { $gte: yesterday } }),
-      db.collection('ip_clicks').countDocuments({ createdAt: { $gte: yesterday } }).then(c => (c * 0.0045).toFixed(4)),
-      db.collection('withdrawals').countDocuments({ status: 'pending' })
-    ]);
-
-    const report = {
-      date: new Date().toDateString(),
-      totalUsers, newUsers,
-      totalLinks, clicks24h,
-      revenue24h: `$${revenue24h}`,
-      pendingWithdrawals,
-      generatedAt: new Date()
-    };
-
-    await db.collection('daily_reports').insertOne(report);
-    console.log('📊 Daily Report Generated:', report);
-    return report;
-  } catch(e) {
-    console.error('Analytics agent error:', e);
-  }
-}
-
-// Har 6 ghante mein report generate karo
-setInterval(generateDailyReport, 6 * 60 * 60 * 1000);
-
-// Admin: Reports dekho
-app.get('/api/admin/reports', adminAuth, async (req, res) => {
-  const reports = await db.collection('daily_reports')
-    .find({}).sort({ generatedAt: -1 }).limit(30).toArray();
-  res.json(reports);
-});
-
-// Admin: Latest report
-app.get('/api/admin/report/latest', adminAuth, async (req, res) => {
-  const report = await generateDailyReport();
-  const latest = await db.collection('daily_reports')
-    .findOne({}, { sort: { generatedAt: -1 } });
-  res.json(latest || { message: 'No reports yet' });
-});
-
-// ══════════════════════════════════════════
-// 🔍 SEO AGENT
-// ══════════════════════════════════════════
-// Auto meta tags generate karta hai har page ke liye
-function generateSEOMeta(title, desc, url) {
-  return `
-<title>${title}</title>
-<meta name="description" content="${desc}"/>
-<meta property="og:title" content="${title}"/>
-<meta property="og:description" content="${desc}"/>
-<meta property="og:url" content="${url}"/>
-<meta property="og:type" content="website"/>
-<meta name="twitter:card" content="summary"/>
-<meta name="twitter:title" content="${title}"/>
-<meta name="twitter:description" content="${desc}"/>
-<link rel="canonical" href="${url}"/>`.trim();
-}
-
-// Dynamic SEO for shortened link preview pages
-app.get('/preview/:code', async (req, res) => {
-  const link = await db.collection('links').findOne({ code: req.params.code });
-  if (!link) return res.redirect('/');
-  const domain = (() => { try { return new URL(link.original).hostname; } catch { return 'link'; } })();
-  const seoMeta = generateSEOMeta(
-    `${domain} — SnapURL`,
-    `SnapURL pe share kiya gaya link. Click karo aur destination pe jao!`,
-    `${req.protocol}://${req.get('host')}/preview/${req.params.code}`
-  );
-  res.send(`<!DOCTYPE html>
-<html><head>
-<meta charset="UTF-8"/>
-<meta name="viewport" content="width=device-width,initial-scale=1"/>
-${seoMeta}
-<meta http-equiv="refresh" content="0;url=/${req.params.code}"/>
-</head>
-<body style="background:#080b10;color:#fff;font-family:sans-serif;display:flex;align-items:center;justify-content:center;height:100vh;text-align:center">
-<div>
-  <div style="font-size:48px;margin-bottom:16px">🔗</div>
-  <p>Redirecting to <strong>${domain}</strong>...</p>
-  <a href="/${req.params.code}" style="color:#00e5ff">Click here if not redirected</a>
-</div>
-</body></html>`);
-});
-
-// SEO: Auto keyword suggestions for users (helps them share better)
-app.get('/api/seo/keywords', async (req, res) => {
-  // Top performing content categories
-  const keywords = [
-    { category: 'Movies/Web Series', keywords: ['latest movie download', 'web series link', 'OTT link'], avgCtr: '8.2%' },
-    { category: 'Study Material', keywords: ['notes PDF', 'question paper', 'syllabus'], avgCtr: '6.5%' },
-    { category: 'Software/Apps', keywords: ['APK download', 'software free', 'app link'], avgCtr: '7.1%' },
-    { category: 'News/Articles', keywords: ['breaking news', 'viral news', 'trending'], avgCtr: '5.8%' },
-    { category: 'Jobs/Government', keywords: ['sarkari naukri', 'govt job', 'vacancy'], avgCtr: '9.3%' },
-  ];
-  res.json({ keywords, tip: 'Inhe WhatsApp groups mein share karo — highest CTR milega!' });
 });
 
 connectDB().then(() => {
