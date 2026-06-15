@@ -316,6 +316,8 @@ app.post('/api/admin/user/:id/ban', adminAuth, async (req, res) => {
 });
 
 // Hilltop verification
+app.get('/health', (req, res) => res.json({ status: 'ok', uptime: process.uptime() }));
+app.get('/ping', (req, res) => res.send('pong'));
 app.get('/74814d72e5abdf9a754e.txt', (req, res) => {
   res.setHeader('Content-Type', 'text/plain');
   res.send('38e1b491d1e083845022');
