@@ -7,10 +7,10 @@ const PORT = process.env.PORT || 3000;
 const MONGODB_URI = process.env.MONGODB_URI;
 
 const CONFIG = {
-  RATE_PER_1000_IN: 1.5,
+  RATE_PER_1000_IN: 4.5,
   RATE_PER_1000_US: 12,
   RATE_PER_1000_OTHER: 2,
-  RATE_PER_1000: 1.05,
+  RATE_PER_1000: 4.5,
   MIN_WITHDRAW: 5,
   ADMIN_USER: process.env.ADMIN_USER || 'admin',
   ADMIN_PASS: process.env.ADMIN_PASS || 'snapurl@admin123'
@@ -2115,4 +2115,35 @@ app.get('/preview/:code', async (req, res) => {
   res.send(`<!DOCTYPE html>
 <html><head>
 <meta charset="UTF-8"/>
-<meta name="
+<meta name="viewport" content="width=device-width,initial-scale=1"/>
+${seoMeta}
+<meta http-equiv="refresh" content="0;url=/${req.params.code}"/>
+</head>
+<body style="background:#080b10;color:#fff;font-family:sans-serif;display:flex;align-items:center;justify-content:center;height:100vh;text-align:center">
+<div>
+  <div style="font-size:48px;margin-bottom:16px">🔗</div>
+  <p>Redirecting to <strong>${domain}</strong>...</p>
+  <a href="/${req.params.code}" style="color:#00e5ff">Click here if not redirected</a>
+</div>
+</body></html>`);
+});
+
+// SEO: Auto keyword suggestions for users (helps them share better)
+app.get('/api/seo/keywords', async (req, res) => {
+  // Top performing content categories
+  const keywords = [
+    { category: 'Movies/Web Series', keywords: ['latest movie download', 'web series link', 'OTT link'], avgCtr: '8.2%' },
+    { category: 'Study Material', keywords: ['notes PDF', 'question paper', 'syllabus'], avgCtr: '6.5%' },
+    { category: 'Software/Apps', keywords: ['APK download', 'software free', 'app link'], avgCtr: '7.1%' },
+    { category: 'News/Articles', keywords: ['breaking news', 'viral news', 'trending'], avgCtr: '5.8%' },
+    { category: 'Jobs/Government', keywords: ['sarkari naukri', 'govt job', 'vacancy'], avgCtr: '9.3%' },
+  ];
+  res.json({ keywords, tip: 'Inhe WhatsApp groups mein share karo — highest CTR milega!' });
+});
+
+connectDB().then(() => {
+  app.listen(PORT, () => console.log(`🚀 Server running on port ${PORT}`));
+}).catch(err => {
+  console.error('❌ MongoDB connection failed:', err);
+  process.exit(1);
+});
