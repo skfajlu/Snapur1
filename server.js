@@ -7,10 +7,10 @@ const PORT = process.env.PORT || 3000;
 const MONGODB_URI = process.env.MONGODB_URI;
 
 const CONFIG = {
-  RATE_PER_1000_IN: 4.5,
+  RATE_PER_1000_IN: 1.5,
   RATE_PER_1000_US: 12,
   RATE_PER_1000_OTHER: 2,
-  RATE_PER_1000: 4.5,
+  RATE_PER_1000: 1.05,
   MIN_WITHDRAW: 5,
   ADMIN_USER: process.env.ADMIN_USER || 'admin',
   ADMIN_PASS: process.env.ADMIN_PASS || 'snapurl@admin123'
