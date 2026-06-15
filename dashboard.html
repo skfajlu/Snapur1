@@ -652,5 +652,129 @@ loadUser();
 setInterval(loadUser, 15000);
 document.getElementById('urlInput').addEventListener('keydown', e => { if(e.key==='Enter') shortenURL(); });
 </script>
+
+<!-- 🤖 SNAPBOT SUPPORT WIDGET -->
+<style>
+.bot-fab{position:fixed;bottom:90px;right:20px;z-index:400;width:52px;height:52px;border-radius:50%;background:linear-gradient(135deg,#00e5ff,#00ff94);border:none;cursor:pointer;display:flex;align-items:center;justify-content:center;font-size:24px;box-shadow:0 4px 20px rgba(0,229,255,0.4);transition:transform .2s}
+.bot-fab:hover{transform:scale(1.1)}
+.bot-fab .bot-ping{position:absolute;top:-2px;right:-2px;width:14px;height:14px;background:#ff3d71;border-radius:50%;border:2px solid #080b10;animation:ping 2s infinite}
+.bot-window{position:fixed;bottom:155px;right:16px;z-index:400;width:320px;max-width:calc(100vw - 32px);background:#0e1219;border:1px solid #1e2535;border-radius:16px;overflow:hidden;display:none;flex-direction:column;box-shadow:0 8px 32px rgba(0,0,0,0.6)}
+.bot-window.open{display:flex}
+.bot-header{background:linear-gradient(135deg,rgba(0,229,255,0.1),rgba(0,255,148,0.05));border-bottom:1px solid #1e2535;padding:12px 16px;display:flex;align-items:center;gap:10px}
+.bot-avatar{width:36px;height:36px;border-radius:50%;background:linear-gradient(135deg,#00e5ff,#00ff94);display:flex;align-items:center;justify-content:center;font-size:18px;flex-shrink:0}
+.bot-info h4{font-size:13px;font-weight:700;color:#fff;margin-bottom:1px}
+.bot-info p{font-size:11px;color:#00ff94}
+.bot-close{margin-left:auto;background:transparent;border:none;color:#5a6480;font-size:18px;cursor:pointer;line-height:1}
+.bot-messages{flex:1;overflow-y:auto;padding:14px;display:flex;flex-direction:column;gap:10px;max-height:300px}
+.bot-msg{max-width:85%;padding:9px 13px;border-radius:12px;font-size:13px;line-height:1.5}
+.bot-msg.bot{background:#141820;border:1px solid #1e2535;color:#e8edf5;align-self:flex-start;border-radius:4px 12px 12px 12px}
+.bot-msg.user{background:linear-gradient(135deg,rgba(0,229,255,0.15),rgba(0,255,148,0.1));border:1px solid rgba(0,229,255,0.2);color:#e8edf5;align-self:flex-end;border-radius:12px 4px 12px 12px}
+.bot-msg.typing{color:#5a6480;font-style:italic}
+.bot-input-row{border-top:1px solid #1e2535;padding:10px;display:flex;gap:8px;align-items:center}
+.bot-input{flex:1;background:#141820;border:1px solid #2a3347;border-radius:8px;padding:9px 12px;color:#e8edf5;font-size:13px;font-family:'Manrope',sans-serif;outline:none;resize:none}
+.bot-input:focus{border-color:rgba(0,229,255,0.4)}
+.bot-send{background:linear-gradient(135deg,#00e5ff,#00ff94);color:#000;border:none;width:34px;height:34px;border-radius:8px;font-size:16px;cursor:pointer;display:flex;align-items:center;justify-content:center;flex-shrink:0}
+.bot-send:disabled{opacity:.4;cursor:not-allowed}
+.bot-suggestions{padding:0 14px 10px;display:flex;flex-wrap:wrap;gap:6px}
+.bot-chip{background:#141820;border:1px solid #2a3347;color:#8892aa;padding:5px 10px;border-radius:20px;font-size:11px;cursor:pointer;transition:all .2s}
+.bot-chip:hover{border-color:#00e5ff;color:#00e5ff}
+</style>
+
+<button class="bot-fab" onclick="toggleBot()" title="SnapBot Support">
+  🤖
+  <div class="bot-ping"></div>
+</button>
+
+<div class="bot-window" id="botWindow">
+  <div class="bot-header">
+    <div class="bot-avatar">🤖</div>
+    <div class="bot-info">
+      <h4>SnapBot</h4>
+      <p>● Online — AI Support</p>
+    </div>
+    <button class="bot-close" onclick="toggleBot()">✕</button>
+  </div>
+  <div class="bot-messages" id="botMessages">
+    <div class="bot-msg bot">Namaste! 👋 Main SnapBot hoon — SnapURL ka AI support agent! Koi bhi sawaal pucho, main help karunga! 😊</div>
+  </div>
+  <div class="bot-suggestions" id="botChips">
+    <div class="bot-chip" onclick="askQuick('Paise kaise kamaye?')">💰 Paise kaise kamaye?</div>
+    <div class="bot-chip" onclick="askQuick('Withdrawal kab aayega?')">💳 Withdrawal kab aayega?</div>
+    <div class="bot-chip" onclick="askQuick('Referral kaise kaam karta hai?')">👥 Referral kya hai?</div>
+    <div class="bot-chip" onclick="askQuick('Minimum withdrawal kitna hai?')">💵 Min withdrawal?</div>
+  </div>
+  <div class="bot-input-row">
+    <input class="bot-input" id="botInput" placeholder="Kuch bhi pucho..." maxlength="500"/>
+    <button class="bot-send" id="botSend" onclick="sendBotMsg()">➤</button>
+  </div>
+</div>
+
+<script>
+let botOpen = false;
+let botHistory = [];
+let botTyping = false;
+
+function toggleBot() {
+  botOpen = !botOpen;
+  document.getElementById('botWindow').classList.toggle('open', botOpen);
+  if (botOpen) document.getElementById('botInput').focus();
+}
+
+function addMsg(text, role) {
+  const el = document.createElement('div');
+  el.className = 'bot-msg ' + role;
+  el.textContent = text;
+  const msgs = document.getElementById('botMessages');
+  msgs.appendChild(el);
+  msgs.scrollTop = msgs.scrollHeight;
+  return el;
+}
+
+async function sendBotMsg() {
+  if (botTyping) return;
+  const input = document.getElementById('botInput');
+  const msg = input.value.trim();
+  if (!msg) return;
+  input.value = '';
+  document.getElementById('botChips').style.display = 'none';
+
+  addMsg(msg, 'user');
+  botHistory.push({ role: 'user', content: msg });
+
+  botTyping = true;
+  document.getElementById('botSend').disabled = true;
+  const typingEl = addMsg('SnapBot likh raha hai...', 'bot typing');
+
+  try {
+    const res = await fetch('/api/support', {
+      method: 'POST',
+      headers: { 'Content-Type': 'application/json' },
+      body: JSON.stringify({ message: msg, history: botHistory.slice(-6) })
+    });
+    const data = await res.json();
+    typingEl.remove();
+    const reply = data.reply || 'Kuch galat hua! Dobara try karo.';
+    addMsg(reply, 'bot');
+    botHistory.push({ role: 'assistant', content: reply });
+  } catch(e) {
+    typingEl.remove();
+    addMsg('Network error! Internet check karo aur dobara try karo.', 'bot');
+  } finally {
+    botTyping = false;
+    document.getElementById('botSend').disabled = false;
+    input.focus();
+  }
+}
+
+function askQuick(q) {
+  document.getElementById('botInput').value = q;
+  sendBotMsg();
+}
+
+document.getElementById('botInput').addEventListener('keydown', e => {
+  if (e.key === 'Enter' && !e.shiftKey) { e.preventDefault(); sendBotMsg(); }
+});
+</script>
+
 </body>
 </html>
